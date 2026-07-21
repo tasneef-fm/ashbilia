@@ -1,0 +1,68 @@
+وردة أشبيليا — تشغيل التطبيق على GitHub Pages
+===============================================
+
+تم تحويل التطبيق من Node.js + SQLite إلى:
+- الواجهة: GitHub Pages
+- قاعدة البيانات وتسجيل الدخول: Supabase PostgreSQL
+
+أولًا: إعداد Supabase
+--------------------
+1) افتح Supabase وأنشئ مشروعًا جديدًا باسم wardat-ashbilya.
+2) افتح SQL Editor ثم New query.
+3) انسخ محتوى الملف supabase/schema.sql ونفذه كاملًا.
+4) البيانات التجريبية اختيارية: نفّذ supabase/seed-demo.sql بعد الملف الأول.
+
+ثانيًا: إنشاء حساب الإدارة
+-------------------------
+1) من Supabase افتح Authentication ثم Users.
+2) اختر Add user وأنشئ بريد الإدارة وكلمة مرور قوية.
+3) تأكد أن المستخدم Confirmed.
+4) من SQL Editor نفّذ مع استبدال البريد:
+
+update public.profiles
+set role_code='admin', name='مدير وردة أشبيليا', is_active=true
+where email='admin@example.com';
+
+لإنشاء موظف:
+- أنشئه أولًا في Authentication.
+- ثم غيّر role_code في profiles إلى أحد القيم:
+management, accountant, sales, cashier, florist, events,
+warehouse, purchasing, driver, installer, customer
+
+ثالثًا: الحصول على بيانات الربط
+-------------------------------
+من Supabase افتح Project Settings ثم API وانسخ:
+- Project URL
+- Anon / Publishable key
+
+لا تستخدم service_role نهائيًا في الموقع.
+
+رابعًا: الرفع إلى GitHub
+------------------------
+الحساب المستخدم: tasneef-fm
+اسم المستودع المقترح: wardat-ashbilya
+
+1) أنشئ مستودعًا جديدًا باسم wardat-ashbilya.
+2) ارفع جميع الملفات والمجلدات كما هي، بما فيها المجلد المخفي .github.
+3) افتح Settings > Secrets and variables > Actions.
+4) أضف سرين:
+   SUPABASE_URL      = رابط مشروع Supabase
+   SUPABASE_ANON_KEY = المفتاح العام Anon/Publishable
+5) افتح Settings > Pages.
+6) في Source اختر GitHub Actions.
+7) افتح تبويب Actions وانتظر اكتمال عملية النشر بعلامة خضراء.
+
+الرابط المتوقع:
+https://tasneef-fm.github.io/wardat-ashbilya/
+
+طريقة بديلة بدون Secrets
+-------------------------
+يمكن تعديل config.js ووضع رابط Supabase والمفتاح العام مباشرة، ثم رفع الملف.
+مفتاح Anon عام بطبيعته، والحماية تعتمد على RLS الموجودة في schema.sql.
+
+ملاحظات مهمة
+------------
+- GitHub Pages يستضيف ملفات HTML/CSS/JavaScript فقط؛ قاعدة البيانات تعمل في Supabase.
+- لا ترفع server.js أو قاعدة SQLite؛ هذه النسخة لا تحتاجهما.
+- عند تعديل الملفات ودفعها إلى main يتم النشر تلقائيًا.
+- بعد إنشاء حساب الإدارة احذف البيانات التجريبية من إعدادات التطبيق قبل الاستخدام التجاري.
