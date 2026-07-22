@@ -21,7 +21,7 @@
 
 ```sql
 update public.profiles
-set role_code='admin', name='مدير وردة أشبيليا', is_active=true
+set role_code='super_admin', name='مدير وردة أشبيليا', is_active=true
 where email='بريد_الإدارة';
 ```
 
@@ -34,3 +34,11 @@ where email='بريد_الإدارة';
 > لا تستخدم مفتاح `service_role` داخل GitHub أو المتصفح. المطلوب هو المفتاح العام Anon/Publishable فقط.
 
 التعليمات التفصيلية موجودة في [ابدأ-من-هنا.txt](./ابدأ-من-هنا.txt).
+
+
+## ترقية الصلاحيات
+
+للقاعدة الحالية نفّذ `supabase/permissions-rebuild.sql` مرة واحدة، ثم ارفع الملفات. التفاصيل في `خطوات-تطبيق-الصلاحيات.txt` والتقرير في `PERMISSIONS-REPORT.md`.
+
+
+بعد تنفيذ الترقية شغّل `supabase/verify-permissions.sql` للتحقق من الجداول والدوال ودور المدير العام.

@@ -11,6 +11,7 @@ window.WardatBackend = (() => {
     && !String(cfg.supabaseAnonKey).includes('ضع_');
 
   let client = null;
+  let currentAccess = null;
   if (configured && window.supabase?.createClient) {
     client = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
       auth: {
@@ -59,20 +60,19 @@ window.WardatBackend = (() => {
   }
   async function profileFor(user) {
     if (!user) return null;
-    const c = ensureClient();
-    const data = unwrap(await c.from('profiles')
-      .select('id,name,email,phone,employee_id,role_code,is_active,roles(name_ar)')
-      .eq('id', user.id).maybeSingle());
-    if (!data || data.is_active === false) return null;
-    return {
-      id: data.id,
-      name: data.name || user.user_metadata?.name || user.email,
-      email: data.email || user.email,
-      phone: data.phone || user.phone || '',
-      employee_id: data.employee_id || null,
-      role_code: data.role_code || 'customer',
-      role_name: data.roles?.name_ar || data.role_code || 'مستخدم'
-    };
+    const access = await rpc('get_current_user_access');
+    if (!access?.user || access.user.is_active === false) return null;
+    currentAccess = access.user;
+    return currentAccess;
+  }
+  function canLocal(permissionKey) {
+    if (!currentAccess || currentAccess.is_active === false) return false;
+    return (currentAccess.permissions || []).includes(permissionKey);
+  }
+  function requireLocal(permissionKey) {
+    const keys = Array.isArray(permissionKey) ? permissionKey : [permissionKey];
+    if (keys.some(canLocal)) return;
+    const e = new Error('ليست لديك صلاحية لتنفيذ هذه العملية'); e.status = 403; throw e;
   }
   async function rpc(name, args = {}) {
     const c = ensureClient();
@@ -109,19 +109,23 @@ window.WardatBackend = (() => {
       return { user };
     }
     if (p === '/api/auth/logout' && method === 'POST') {
-      unwrap(await c.auth.signOut());
+      unwrap(await c.auth.signOut());currentAccess=null;
       return { ok: true };
     }
     if (p === '/api/auth/me' && method === 'GET') {
       const session = unwrap(await c.auth.getSession())?.session;
       return { user: session?.user ? await profileFor(session.user) : null };
     }
+    if (p === '/api/auth/permissions' && method === 'GET') {
+      const access = await rpc('get_current_user_access'); currentAccess = access?.user || null; return access;
+    }
+    if (p === '/api/auth/permissions-version' && method === 'GET') return await rpc('get_my_permissions_version');
 
     // المتجر العام
     if (p === '/api/public/bootstrap' && method === 'GET') {
       const [categories, products, services, reviews] = await Promise.all([
         rows('product_categories', 'id,name_ar,name_en,slug,sort_order', q => q.eq('is_active', true).order('sort_order').order('name_ar')),
-        rows('v_products', '*', q => q.eq('is_active', true).order('is_featured', { ascending: false }).order('created_at', { ascending: false }).limit(100)),
+        rows('v_public_products', '*', q => q.eq('is_active', true).order('is_featured', { ascending: false }).order('created_at', { ascending: false }).limit(100)),
         rows('services', '*', q => q.eq('is_active', true).order('base_price')),
         rows('v_public_reviews', '*', q => q.order('created_at', { ascending: false }).limit(8))
       ]);
@@ -136,6 +140,32 @@ window.WardatBackend = (() => {
     if (p === '/api/public/orders' && method === 'POST') return await rpc('create_public_order', { p_payload: body });
     if (p === '/api/public/bookings' && method === 'POST') return await rpc('create_public_booking', { p_payload: body });
 
+
+    // تحقق مركزي في خدمة البيانات. تبقى RLS وRPC هي الحماية النهائية.
+    if (!options.skipPermissionCheck) {
+      const routeRules = [
+        [/^\/api\/dashboard$/, 'dashboard.view'],
+        [/^\/api\/categories$/, method==='GET'?'categories.view':'categories.create'],
+        [/^\/api\/products(?:\/[^/]+)?$/, method==='GET'?'products.view':method==='POST'?'products.create':'products.edit'],
+        [/^\/api\/inventory$/, 'inventory.view'], [/^\/api\/inventory\/adjust$/, ['inventory.adjust','inventory.issue','inventory.receive']],
+        [/^\/api\/customers$/, method==='GET'?'customers.view':'customers.create'],
+        [/^\/api\/orders$/, method==='GET'?'orders.view':'pos.create_sale'], [/^\/api\/orders\/[^/]+$/, body.status==='cancelled'?'orders.cancel':body.status==='returned'?'orders.return':'orders.edit'],
+        [/^\/api\/bookings$/, method==='GET'?'bookings.view':'bookings.create'], [/^\/api\/bookings\/[^/]+$/, body.status==='confirmed'?'bookings.approve':body.status==='cancelled'?'bookings.cancel':'bookings.edit'],
+        [/^\/api\/quotations$/, method==='GET'?'quotations.view':'quotations.create'], [/^\/api\/quotations\/[^/]+\/approve$/, 'quotations.approve'],
+        [/^\/api\/work-orders$/, method==='GET'?'workorders.view':'workorders.create'], [/^\/api\/work-orders\/[^/]+$/, ['workorders.edit','workorders.assign','workorders.update_status','workorders.upload_files','workorders.complete']],
+        [/^\/api\/employees$/, ['employees.view','workorders.assign']],
+        [/^\/api\/suppliers$/, method==='GET'?'suppliers.view':'suppliers.create'],
+        [/^\/api\/purchase-orders$/, method==='GET'?'purchases.view':'purchases.create'], [/^\/api\/purchase-orders\/[^/]+\/receive$/, 'purchases.receive'],
+        [/^\/api\/smart\/suggestions$/, 'smart.view'], [/^\/api\/reports$/, 'reports.view'],
+        [/^\/api\/notifications$/, 'notifications.view'], [/^\/api\/notifications\/read$/, 'notifications.resolve'],
+        [/^\/api\/audit$/, 'audit.view'], [/^\/api\/settings\/clear-demo$/, 'settings.clear_demo'],
+        [/^\/api\/access\/users(?:\/[^/]+)?$/, method==='GET'?'users.view':method==='PATCH'?['users.edit','users.disable']:'users.manage_permissions'],
+        [/^\/api\/access\/roles$/, 'roles.view'], [/^\/api\/access\//, 'users.manage_permissions']
+      ];
+      const rule = routeRules.find(([rx]) => rx.test(p));
+      if (rule) requireLocal(rule[1]);
+    }
+
     // لوحة الإدارة
     if (p === '/api/dashboard' && method === 'GET') return await rpc('get_dashboard');
 
@@ -143,15 +173,7 @@ window.WardatBackend = (() => {
     if (p === '/api/categories' && method === 'GET') {
       return { items: await rows('product_categories', '*', q => q.order('sort_order').order('name_ar')) };
     }
-    if (p === '/api/categories' && method === 'POST') {
-      const item = unwrap(await c.from('product_categories').insert({
-        name_ar: body.name_ar,
-        name_en: body.name_en || null,
-        slug: body.slug || `cat-${crypto.randomUUID().slice(0, 8)}`,
-        is_active: true
-      }).select().single());
-      return { item };
-    }
+    if (p === '/api/categories' && method === 'POST') return await rpc('create_category', { p_payload: body });
     if (p === '/api/products' && method === 'GET') {
       const activeOnly = u.searchParams.get('active') === '1';
       let q = c.from('v_products').select('*').order('created_at', { ascending: false });
@@ -183,7 +205,7 @@ window.WardatBackend = (() => {
     if (orderMatch && method === 'PATCH') return await rpc('update_order_status', { p_order_id: orderMatch[1], p_status: body.status, p_reason: body.reason || '' });
 
     // الحجوزات
-    if (p === '/api/bookings' && method === 'GET') return { items: await rows('bookings', '*', q => q.order('start_at', { ascending: false })) };
+    if (p === '/api/bookings' && method === 'GET') return { items: await rows('v_bookings', '*', q => q.order('start_at', { ascending: false })) };
     if (p === '/api/bookings' && method === 'POST') return await rpc('create_staff_booking', { p_payload: body });
     const bookingMatch = p.match(/^\/api\/bookings\/([^/]+)$/);
     if (bookingMatch && method === 'PATCH') return await rpc('update_booking_record', {
@@ -204,23 +226,11 @@ window.WardatBackend = (() => {
     if (p === '/api/work-orders' && method === 'POST') return await rpc('create_work_order', { p_payload: body });
     const workOrderMatch = p.match(/^\/api\/work-orders\/([^/]+)$/);
     if (workOrderMatch && method === 'PATCH') return await rpc('update_work_order', { p_work_order_id: workOrderMatch[1], p_payload: body });
-    if (p === '/api/employees' && method === 'GET') return { items: await rows('employees', '*', q => q.eq('is_active', true).order('name')) };
+    if (p === '/api/employees' && method === 'GET') return { items: await rows('v_employees', 'id,name,job_title,role_code,is_active', q => q.eq('is_active', true).order('name')) };
 
     // الموردون والمشتريات
-    if (p === '/api/suppliers' && method === 'GET') return { items: await rows('suppliers', '*', q => q.order('name')) };
-    if (p === '/api/suppliers' && method === 'POST') {
-      const item = unwrap(await c.from('suppliers').insert({
-        supplier_no: await rpc('next_document_no', { p_prefix: 'SUP' }),
-        name: body.name,
-        phone: body.phone || null,
-        email: body.email || null,
-        tax_no: body.tax_no || null,
-        address: body.address || null,
-        material_types: body.material_types || null,
-        rating: Number(body.rating || 0)
-      }).select().single());
-      return { item };
-    }
+    if (p === '/api/suppliers' && method === 'GET') return { items: await rows('v_suppliers', '*', q => q.order('name')) };
+    if (p === '/api/suppliers' && method === 'POST') return await rpc('create_supplier', { p_payload: body });
     if (p === '/api/purchase-orders' && method === 'GET') return { items: await rows('v_purchase_orders', '*', q => q.order('created_at', { ascending: false })) };
     if (p === '/api/purchase-orders' && method === 'POST') return await rpc('create_purchase_order', { p_payload: body });
     const receiveMatch = p.match(/^\/api\/purchase-orders\/([^/]+)\/receive$/);
@@ -244,6 +254,26 @@ window.WardatBackend = (() => {
     }
     if (p === '/api/audit' && method === 'GET') return { items: await rows('v_audit_logs', '*', q => q.order('created_at', { ascending: false }).limit(250)) };
     if (p === '/api/settings/clear-demo' && method === 'POST') return await rpc('clear_demo_data');
+
+
+    // إدارة المستخدمين والصلاحيات
+    if (p === '/api/access/users' && method === 'GET') return { items: await rpc('list_access_users') };
+    if (p === '/api/access/roles' && method === 'GET') return { items: await rpc('list_access_roles') };
+    const accessUser = p.match(/^\/api\/access\/users\/([^/]+)$/);
+    if (accessUser && method === 'PATCH') return await rpc('set_user_access', { p_target_user: accessUser[1], p_role_code: body.role_code, p_is_active: Boolean(body.is_active), p_access_scope: body.access_scope || 'all', p_reason: body.reason || '' });
+    const permissionUser = p.match(/^\/api\/access\/permissions\/([^/]+)$/);
+    if (permissionUser && method === 'GET') return await rpc('get_user_permission_matrix', { p_target_user: permissionUser[1] });
+    if (permissionUser && method === 'POST') return await rpc('save_user_permissions', { p_target_user: permissionUser[1], p_changes: body.changes || [], p_reason: body.reason || '' });
+    const grantAll = p.match(/^\/api\/access\/grant-all\/([^/]+)$/);
+    if (grantAll && method === 'POST') return await rpc('grant_all_user_permissions', { p_target_user: grantAll[1], p_reason: body.reason || '' });
+    const revokeAll = p.match(/^\/api\/access\/revoke-all\/([^/]+)$/);
+    if (revokeAll && method === 'POST') return await rpc('revoke_all_user_permissions', { p_target_user: revokeAll[1], p_reason: body.reason || '' });
+    const copyPermissions = p.match(/^\/api\/access\/copy\/([^/]+)$/);
+    if (copyPermissions && method === 'POST') return await rpc('copy_user_permissions', { p_source_user: body.source_user_id, p_target_user: copyPermissions[1], p_reason: body.reason || '' });
+    const roleTemplate = p.match(/^\/api\/access\/role-template\/([^/]+)$/);
+    if (roleTemplate && method === 'POST') return await rpc('apply_role_template', { p_target_user: roleTemplate[1], p_role_code: body.role_code, p_reason: body.reason || '' });
+    const diagnostics = p.match(/^\/api\/access\/diagnostics\/([^/]+)$/);
+    if (diagnostics && method === 'GET') return await rpc('permission_diagnostics', { p_target_user: diagnostics[1] });
 
     throw new Error('المسار غير مدعوم في نسخة GitHub Pages');
   }
