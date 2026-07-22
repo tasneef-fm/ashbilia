@@ -1,0 +1,12 @@
+تم ربط تطبيق وردة أشبيليا بقاعدة Supabase التالية:
+
+Project URL:
+https://lzzfjjratxmrxvhxmysc.supabase.co
+
+المفتاح:
+Publishable Key
+
+مهم:
+1) نفّذ ملف supabase/schema.sql داخل SQL Editor في Supabase.
+2) لا تستخدم service_role داخل ملفات GitHub Pages.
+3) ارفع محتويات هذا الملف المضغوط إلى جذر المستودع.

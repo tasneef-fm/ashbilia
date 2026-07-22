@@ -1,9 +1,8 @@
 /*
- * إعداد الاتصال بقاعدة Supabase.
- * يمكن إدخال القيم هنا مباشرة، أو إضافتها كأسرار داخل GitHub Actions:
- * SUPABASE_URL و SUPABASE_ANON_KEY
+ * إعداد الاتصال بقاعدة Supabase لتطبيق وردة أشبيليا.
+ * المفتاح المستخدم Publishable Key ومناسب لتطبيق GitHub Pages.
  */
 window.WARDAT_CONFIG = Object.freeze({
-  supabaseUrl: 'ضع_رابط_SUPABASE_هنا',
-  supabaseAnonKey: 'ضع_ANON_KEY_هنا'
+  supabaseUrl: 'https://lzzfjjratxmrxvhxmysc.supabase.co',
+  supabaseAnonKey: 'sb_publishable_4NS48q4ehpC36CJ-J6lz_Q_w0j0p9Y2'
 });
