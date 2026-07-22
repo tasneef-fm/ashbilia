@@ -8,7 +8,7 @@
   <link rel="icon" href="assets/logo.png">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body data-portal="customer">
   <div id="toast" class="toast"></div>
 
   <section id="storeView" class="store-view">
@@ -25,7 +25,7 @@
       </nav>
       <div class="store-actions">
         <button class="icon-btn" id="cartBtn">السلة <b id="cartCount">0</b></button>
-        <button class="btn btn-outline" id="openLoginBtn">دخول الموظفين</button>
+        <a class="btn btn-outline" href="employee.html">دخول الموظفين</a><a class="btn btn-dark" href="admin.html">دخول الإدارة</a>
       </div>
     </header>
 
@@ -72,24 +72,6 @@
 
     <footer class="store-footer"><div class="brand"><img src="assets/logo.png" alt=""><span><strong>وردة أشبيليا</strong><small>WARDAT ASHBILYA</small></span></div><p>الرياض، المملكة العربية السعودية · جميع الأسعار بالريال السعودي وتشمل الضريبة عند الفوترة.</p></footer>
   </section>
-
-  <section id="appView" class="app-view hidden">
-    <aside class="sidebar">
-      <div class="side-brand"><img src="assets/logo.png" alt=""><div><strong>وردة أشبيليا</strong><small>نظام الإدارة والتشغيل</small></div></div>
-      <nav id="sideNav"></nav>
-      <div class="side-user"><div class="avatar" id="userAvatar">و</div><div><strong id="userName">المستخدم</strong><small id="userRole">الإدارة</small></div><button id="logoutBtn" title="تسجيل الخروج">↪</button></div>
-    </aside>
-    <div class="app-main">
-      <header class="topbar">
-        <button class="menu-btn" id="menuBtn">☰</button>
-        <div><h1 id="pageTitle">لوحة الإدارة</h1><p id="pageSubtitle">نظرة مباشرة على التشغيل والمبيعات</p></div>
-        <div class="top-actions"><button class="icon-btn" id="refreshBtn">تحديث</button><button class="icon-btn" id="notificationsBtn">الإشعارات <b id="notificationCount">0</b></button><button class="btn btn-outline" id="backToStore">المتجر</button></div>
-      </header>
-      <main id="content" class="content"></main>
-    </div>
-  </section>
-
-  <div id="loginModal" class="modal hidden"><div class="modal-card login-card"><button class="modal-close" data-close="loginModal">×</button><img class="login-logo" src="assets/logo.png" alt=""><h2>دخول فريق وردة أشبيليا</h2><p>استخدم حساب الإدارة أو الموظف للوصول حسب الصلاحية.</p><form id="loginForm" class="form-grid single"><label>البريد الإلكتروني<input type="email" name="email" placeholder="admin@example.com" autocomplete="username" required></label><label>كلمة المرور<input type="password" name="password" autocomplete="current-password" required></label><button class="btn btn-primary" type="submit">تسجيل الدخول</button></form><div class="demo-note"><b>تسجيل الدخول:</b> استخدم حساب الموظف الذي تم إنشاؤه داخل Supabase Authentication، وتُحدد صلاحياته من جدول profiles.</div></div></div>
 
   <div id="cartDrawer" class="drawer hidden"><div class="drawer-head"><h2>سلة المشتريات</h2><button class="modal-close" data-close="cartDrawer">×</button></div><div id="cartItems" class="drawer-body"></div><div class="drawer-foot"><div class="totals" id="cartTotals"></div><button class="btn btn-primary wide" id="checkoutBtn">إتمام الطلب</button></div></div>
 

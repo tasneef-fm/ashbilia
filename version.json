@@ -1,7 +1,7 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "1.3.0-permissions",
+  "version": "2026.07.22-separate-portals",
   "generated": "2026-07-21",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
@@ -9,5 +9,8 @@
   "permissions_schema": 2,
   "active_permissions": 68,
   "updated_at": "2026-07-22T17:35:00+03:00",
-  "permissions_build": "v2-view-type-fix"
+  "permissions_build": "v2-view-type-fix",
+  "customer_page": "index.html",
+  "admin_page": "admin.html",
+  "employee_page": "employee.html"
 }

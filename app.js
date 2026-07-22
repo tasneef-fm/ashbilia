@@ -1,5 +1,24 @@
 'use strict';
 
+const PORTAL_MODE = document.body?.dataset.portal || 'customer';
+const ADMIN_ROLE_CODES = new Set(['super_admin','admin','management','accountant']);
+const EMPLOYEE_PAGE_IDS = new Set(['dashboard','pos','orders','bookings','quotes','workorders','products','inventory','purchases','customers','smart','reports']);
+
+function portalForRole(roleCode='') {
+  if (roleCode === 'customer') return 'customer';
+  return ADMIN_ROLE_CODES.has(roleCode) ? 'admin' : 'employee';
+}
+function portalUrl(mode) { return mode === 'admin' ? 'admin.html' : mode === 'employee' ? 'employee.html' : 'index.html'; }
+function availablePages() {
+  let allowed = pages.filter(p => can(p.permission));
+  if (PORTAL_MODE === 'employee') allowed = allowed.filter(p => EMPLOYEE_PAGE_IDS.has(p.id));
+  return allowed;
+}
+function pageLabel(meta) {
+  if (PORTAL_MODE === 'employee' && meta?.id === 'dashboard') return 'لوحة الموظف';
+  return meta?.label || 'النظام';
+}
+
 const $ = (s, root=document) => root.querySelector(s);
 const $$ = (s, root=document) => [...root.querySelectorAll(s)];
 const state = {
@@ -49,7 +68,8 @@ async function api(url, options={}){
     return await window.WardatBackend.request(url, options);
   } catch (error) {
     if ((error.status===401 || /يلزم تسجيل الدخول/.test(error.message)) && state.user) {
-      state.user=null; showStore(); show('loginModal');
+      state.user=null;
+      if (PORTAL_MODE === 'customer') showStore(); else showPortalLogin();
     }
     throw error;
   }
@@ -78,21 +98,39 @@ function openForm(title, html, onSubmit){
 
 async function init(){
   bindGlobal();
-  updateCartCount();
-  if (!window.WardatBackend?.isConfigured()) {
-    $('#storeProducts').innerHTML='<div class="empty"><h3>التطبيق جاهز للنشر ويحتاج ربط Supabase</h3><p>أدخل رابط المشروع وAnon Key في ملف <b>config.js</b>، ثم نفّذ ملف <b>supabase/schema.sql</b>.</p></div>';
-    $('#servicesGrid').innerHTML='<div class="empty">بعد الربط ستظهر المنتجات والخدمات من قاعدة البيانات الموحدة.</div>';
-    $('#openLoginBtn').onclick=()=>toast('أكمل إعداد Supabase أولًا','error');
+
+  if (PORTAL_MODE === 'customer') {
+    updateCartCount();
+    if (!window.WardatBackend?.isConfigured()) {
+      if ($('#storeProducts')) $('#storeProducts').innerHTML='<div class="empty"><h3>التطبيق جاهز للنشر ويحتاج ربط Supabase</h3><p>أدخل رابط المشروع وAnon Key في ملف <b>config.js</b>، ثم نفّذ ملف <b>supabase/schema.sql</b>.</p></div>';
+      if ($('#servicesGrid')) $('#servicesGrid').innerHTML='<div class="empty">بعد الربط ستظهر المنتجات والخدمات من قاعدة البيانات الموحدة.</div>';
+      return;
+    }
+    try {
+      await loadPublic();
+      renderStore();
+    } catch (error) {
+      if ($('#storeProducts')) $('#storeProducts').innerHTML=`<div class="empty"><h3>تعذر الاتصال بقاعدة البيانات</h3><p>${escapeHtml(error.message)}</p></div>`;
+      toast(error.message,'error');
+    }
     return;
   }
+
+  if (!window.WardatBackend?.isConfigured()) {
+    showPortalLogin('لم يتم ربط الصفحة بقاعدة Supabase. راجع ملف config.js.');
+    return;
+  }
+
   try {
-    await loadPublic();
-    renderStore();
     const {user}=await api('/api/auth/me');
-    if(user){state.user=user;await showApp();}
+    if(user){
+      state.user=user;
+      const correctPortal=portalForRole(user.role_code);
+      if(correctPortal !== PORTAL_MODE){ window.location.replace(portalUrl(correctPortal)); return; }
+      await showApp();
+    } else showPortalLogin();
   } catch (error) {
-    $('#storeProducts').innerHTML=`<div class="empty"><h3>تعذر الاتصال بقاعدة البيانات</h3><p>${escapeHtml(error.message)}</p></div>`;
-    toast(error.message,'error');
+    showPortalLogin(error.message);
   }
 }
 function bindGlobal(){
@@ -100,21 +138,25 @@ function bindGlobal(){
     const close=e.target.closest('[data-close]');if(close)hide(close.dataset.close);
     const scroll=e.target.closest('[data-scroll]');if(scroll)$('#'+scroll.dataset.scroll)?.scrollIntoView({behavior:'smooth'});
   });
-  $('#openLoginBtn').onclick=()=>show('loginModal');
-  $('#loginForm').onsubmit=login;
-  $('#logoutBtn').onclick=logout;
-  $('#backToStore').onclick=showStore;
-  $('#menuBtn').onclick=()=>$('.sidebar').classList.toggle('open');
-  $('#refreshBtn').onclick=()=>renderPage(state.currentPage,true);
-  $('#notificationsBtn').onclick=renderNotifications;
-  $('#cartBtn').onclick=renderCartDrawer;
-  $('#checkoutBtn').onclick=()=>{if(!state.cart.length)return toast('السلة فارغة','error');hide('cartDrawer');show('checkoutModal');};
-  $('#checkoutForm').onsubmit=checkout;
-  $('#publicBookingForm').onsubmit=submitPublicBooking;
-  ['openBookingBtn','openBookingBtn2'].forEach(i=>$('#'+i).onclick=()=>show('bookingModal'));
-  ['openAssistantBtn','openAssistantBtn2'].forEach(i=>$('#'+i).onclick=()=>show('assistantModal'));
-  $('#assistantForm').onsubmit=assistantRecommend;
-  $('#showAllProducts').onclick=()=>{state.category=null;renderStoreProducts();$('#productsSection').scrollIntoView({behavior:'smooth'});};
+
+  if (PORTAL_MODE === 'customer') {
+    if ($('#cartBtn')) $('#cartBtn').onclick=renderCartDrawer;
+    if ($('#checkoutBtn')) $('#checkoutBtn').onclick=()=>{if(!state.cart.length)return toast('السلة فارغة','error');hide('cartDrawer');show('checkoutModal');};
+    if ($('#checkoutForm')) $('#checkoutForm').onsubmit=checkout;
+    if ($('#publicBookingForm')) $('#publicBookingForm').onsubmit=submitPublicBooking;
+    ['openBookingBtn','openBookingBtn2'].forEach(i=>{if($('#'+i))$('#'+i).onclick=()=>show('bookingModal');});
+    ['openAssistantBtn','openAssistantBtn2'].forEach(i=>{if($('#'+i))$('#'+i).onclick=()=>show('assistantModal');});
+    if ($('#assistantForm')) $('#assistantForm').onsubmit=assistantRecommend;
+    if ($('#showAllProducts')) $('#showAllProducts').onclick=()=>{state.category=null;renderStoreProducts();$('#productsSection')?.scrollIntoView({behavior:'smooth'});};
+    return;
+  }
+
+  if ($('#loginForm')) $('#loginForm').onsubmit=login;
+  if ($('#logoutBtn')) $('#logoutBtn').onclick=logout;
+  if ($('#backToStore')) $('#backToStore').onclick=()=>window.location.href='index.html';
+  if ($('#menuBtn')) $('#menuBtn').onclick=()=>$('.sidebar')?.classList.toggle('open');
+  if ($('#refreshBtn')) $('#refreshBtn').onclick=()=>state.currentPage&&renderPage(state.currentPage,true);
+  if ($('#notificationsBtn')) $('#notificationsBtn').onclick=renderNotifications;
 }
 async function loadPublic(){state.publicData=await api('/api/public/bootstrap');}
 function renderStore(){
@@ -143,12 +185,73 @@ async function checkout(e){e.preventDefault();const b=formDataObj(e.target);b.it
 async function submitPublicBooking(e){e.preventDefault();const b=formDataObj(e.target);const btn=$('button[type=submit]',e.target);btn.disabled=true;try{const {booking}=await api('/api/public/bookings',{method:'POST',body:b});hide('bookingModal');e.target.reset();toast(`تم استلام طلب الحجز: ${booking.booking_no}`);}catch(err){toast(err.message,'error')}finally{btn.disabled=false;}}
 function assistantRecommend(e){e.preventDefault();const b=formDataObj(e.target),budget=Number(b.budget)||0;let products=state.publicData.products.filter(p=>Number(p.sale_price)*1.15<=budget*1.15).sort((a,c)=>Math.abs(Number(a.sale_price)-budget)-Math.abs(Number(c.sale_price)-budget)).slice(0,3);if(!products.length)products=state.publicData.products.slice(0,3);$('#assistantResults').innerHTML=products.map((p,i)=>`<div class="assistant-option"><small>الخيار ${i+1}</small><h4>${escapeHtml(p.name_ar)}</h4><p>${escapeHtml(p.description||'خيار مناسب للمناسبة والألوان المختارة.')}</p><b>${money(Number(p.sale_price)*1.15)}</b><button class="btn btn-outline wide" data-assist-add="${p.id}">أضف للسلة</button></div>`).join('');$$('[data-assist-add]').forEach(x=>x.onclick=()=>addToCart(x.dataset.assistAdd));}
 
-async function login(e){e.preventDefault();const b=formDataObj(e.target),btn=$('button[type=submit]',e.target);btn.disabled=true;try{const r=await api('/api/auth/login',{method:'POST',body:b});state.user=r.user;hide('loginModal');await showApp();toast('مرحبًا بك في نظام وردة أشبيليا');}catch(err){toast(err.message,'error')}finally{btn.disabled=false;}}
-async function logout(){await api('/api/auth/logout',{method:'POST'}).catch(()=>{});window.PermissionsService?.clear();state.user=null;state.cache={};showStore();toast('تم تسجيل الخروج');}
-function showStore(){hide('appView');show('storeView');$('.sidebar')?.classList.remove('open');window.scrollTo({top:0,behavior:'smooth'});}
-async function showApp(){await window.PermissionsService.initialize(state.user);hide('storeView');show('appView');$('#userName').textContent=state.user.name;$('#userRole').textContent=state.user.role_name||state.user.role_code;$('#userAvatar').textContent=state.user.name?.slice(0,1)||'و';renderNav();const allowed=pages.filter(p=>can(p.permission));if(!allowed.some(p=>p.id===state.currentPage))state.currentPage=allowed[0]?.id||null;if(state.currentPage)await renderPage(state.currentPage);else $('#content').innerHTML='<div class="empty">لا توجد أقسام مسموحة لهذا المستخدم. راجع إدارة الصلاحيات.</div>';loadNotificationCount();}
-function renderNav(){const allowed=pages.filter(p=>can(p.permission));$('#sideNav').innerHTML=allowed.map(p=>`<button class="nav-item ${state.currentPage===p.id?'active':''}" data-page="${p.id}"><span class="ico">${p.icon}</span>${p.label}</button>`).join('');$$('[data-page]','#sideNav').forEach(b=>b.onclick=()=>{state.currentPage=b.dataset.page;renderNav();renderPage(state.currentPage);$('.sidebar').classList.remove('open');});}
-async function renderPage(page,force=false){const meta=pages.find(p=>p.id===page);if(!meta||!can(meta.permission)){state.currentPage=null;renderNav();$('#pageTitle').textContent='غير مصرح';$('#pageSubtitle').textContent='تم منع فتح الرابط المباشر';$('#content').innerHTML='<div class="empty"><h3>ليس لديك صلاحية لفتح هذا القسم</h3><p>تم منع تحميل بيانات القسم.</p></div>';return;}state.currentPage=page;renderNav();$('#pageTitle').textContent=meta?.label||'النظام';$('#pageSubtitle').textContent=pageSub(page);$('#content').innerHTML='<div class="empty">جاري تحميل البيانات...</div>';try{switch(page){case'dashboard':await renderDashboard();break;case'products':await renderProducts();break;case'inventory':await renderInventory();break;case'pos':await renderPOS();break;case'orders':await renderOrders();break;case'bookings':await renderBookings();break;case'quotes':await renderQuotes();break;case'workorders':await renderWorkOrders();break;case'customers':await renderCustomers();break;case'purchases':await renderPurchases();break;case'smart':await renderSmart();break;case'reports':await renderReports();break;case'users':await renderUsers();break;case'audit':await renderAudit();break;case'settings':renderSettings();break;default:$('#content').innerHTML='<div class="empty">القسم قيد الإعداد</div>';}applyPagePermissions(page);}catch(err){$('#content').innerHTML=`<div class="empty">${escapeHtml(err.message)}</div>`;toast(err.message,'error');}}
+async function login(e){
+  e.preventDefault();
+  const b=formDataObj(e.target),btn=$('button[type=submit]',e.target);
+  btn.disabled=true;
+  try{
+    const r=await api('/api/auth/login',{method:'POST',body:b});
+    state.user=r.user;
+    const correctPortal=portalForRole(state.user.role_code);
+    if(correctPortal==='customer'){
+      await api('/api/auth/logout',{method:'POST'}).catch(()=>{});
+      state.user=null;
+      throw new Error('هذا حساب عميل وليس حساب إدارة أو موظف');
+    }
+    if(correctPortal!==PORTAL_MODE){
+      window.location.replace(portalUrl(correctPortal));
+      return;
+    }
+    await showApp();
+    toast(PORTAL_MODE==='admin'?'مرحبًا بك في لوحة الإدارة':'مرحبًا بك في صفحة الموظف');
+  }catch(err){
+    showPortalLogin(err.message);
+    toast(err.message,'error');
+  }finally{btn.disabled=false;}
+}
+async function logout(){
+  await api('/api/auth/logout',{method:'POST'}).catch(()=>{});
+  window.PermissionsService?.clear();
+  state.user=null;state.cache={};state.currentPage='dashboard';
+  showPortalLogin();
+  toast('تم تسجيل الخروج');
+}
+function showStore(){
+  if(PORTAL_MODE!=='customer'){window.location.href='index.html';return;}
+  hide('appView');show('storeView');$('.sidebar')?.classList.remove('open');window.scrollTo({top:0,behavior:'smooth'});
+}
+function showPortalLogin(message=''){
+  hide('appView');show('portalLoginView');$('.sidebar')?.classList.remove('open');
+  const msg=$('#portalLoginMessage');
+  if(msg){msg.textContent=message|| (PORTAL_MODE==='admin'?'استخدم حساب الإدارة المخول للدخول.':'استخدم حساب الموظف وسيتم عرض الأقسام المسموحة له فقط.');}
+  const pass=$('#loginForm input[name=password]');if(pass)pass.value='';
+}
+async function showApp(){
+  if(!state.user)return showPortalLogin();
+  const correctPortal=portalForRole(state.user.role_code);
+  if(correctPortal!==PORTAL_MODE){window.location.replace(portalUrl(correctPortal));return;}
+  await window.PermissionsService.initialize(state.user);
+  hide('portalLoginView');show('appView');
+  if($('#userName'))$('#userName').textContent=state.user.name;
+  if($('#userRole'))$('#userRole').textContent=state.user.role_name||state.user.role_code;
+  if($('#userAvatar'))$('#userAvatar').textContent=state.user.name?.slice(0,1)||'و';
+  if($('#portalSideLabel'))$('#portalSideLabel').textContent=PORTAL_MODE==='admin'?'نظام الإدارة':'بوابة الموظفين';
+  if($('#portalHeaderTitle'))$('#portalHeaderTitle').textContent=PORTAL_MODE==='admin'?'لوحة الإدارة':'صفحة الموظف';
+  if($('#portalHeaderSubtitle'))$('#portalHeaderSubtitle').textContent=PORTAL_MODE==='admin'?'الإدارة والمبيعات والتشغيل':'المهام والطلبات المسموحة حسب الصلاحية';
+  renderNav();
+  const allowed=availablePages();
+  if(!allowed.some(p=>p.id===state.currentPage))state.currentPage=allowed[0]?.id||null;
+  if(state.currentPage)await renderPage(state.currentPage);
+  else if($('#content'))$('#content').innerHTML='<div class="empty">لا توجد أقسام مسموحة لهذا المستخدم. راجع إدارة الصلاحيات.</div>';
+  loadNotificationCount();
+}
+function renderNav(){
+  const nav=$('#sideNav');if(!nav)return;
+  const allowed=availablePages();
+  nav.innerHTML=allowed.map(p=>`<button class="nav-item ${state.currentPage===p.id?'active':''}" data-page="${p.id}"><span class="ico">${p.icon}</span>${escapeHtml(pageLabel(p))}</button>`).join('');
+  $$('[data-page]',nav).forEach(b=>b.onclick=()=>{state.currentPage=b.dataset.page;renderNav();renderPage(state.currentPage);$('.sidebar')?.classList.remove('open');});
+}
+async function renderPage(page,force=false){const meta=availablePages().find(p=>p.id===page);if(!meta||!can(meta.permission)){state.currentPage=null;renderNav();$('#pageTitle').textContent='غير مصرح';$('#pageSubtitle').textContent='تم منع فتح الرابط المباشر';$('#content').innerHTML='<div class="empty"><h3>ليس لديك صلاحية لفتح هذا القسم</h3><p>تم منع تحميل بيانات القسم.</p></div>';return;}state.currentPage=page;renderNav();$('#pageTitle').textContent=pageLabel(meta);$('#pageSubtitle').textContent=pageSub(page);$('#content').innerHTML='<div class="empty">جاري تحميل البيانات...</div>';try{switch(page){case'dashboard':await renderDashboard();break;case'products':await renderProducts();break;case'inventory':await renderInventory();break;case'pos':await renderPOS();break;case'orders':await renderOrders();break;case'bookings':await renderBookings();break;case'quotes':await renderQuotes();break;case'workorders':await renderWorkOrders();break;case'customers':await renderCustomers();break;case'purchases':await renderPurchases();break;case'smart':await renderSmart();break;case'reports':await renderReports();break;case'users':await renderUsers();break;case'audit':await renderAudit();break;case'settings':renderSettings();break;default:$('#content').innerHTML='<div class="empty">القسم قيد الإعداد</div>';}applyPagePermissions(page);}catch(err){$('#content').innerHTML=`<div class="empty">${escapeHtml(err.message)}</div>`;toast(err.message,'error');}}
 function pageSub(p){return {dashboard:'نظرة مباشرة على التشغيل والمبيعات',products:'إدارة المنتجات والأسعار والتصنيفات',inventory:'الكميات والحركات والتنبيهات',pos:'بيع مباشر وإصدار فاتورة وخصم المخزون',orders:'متابعة الطلبات والمدفوعات والتسليم',bookings:'تقويم الأعراس والمناسبات والمعاينات',quotes:'من عرض السعر إلى الحجز وأمر العمل',workorders:'تنفيذ المهام والتوثيق وإعادة المعدات',customers:'سجل العميل والطلبات ونقاط الولاء',purchases:'الموردون وأوامر الشراء والاستلام',smart:'تنبيهات واقتراحات مبنية على بيانات النظام',reports:'تقارير قابلة للفلترة والتصدير',users:'إدارة المستخدمين والأدوار والصلاحيات الفعلية',audit:'كل تعديل وحذف واعتماد داخل النظام',settings:'بيانات المنشأة والتجربة والإعدادات'}[p]||'';}
 
 async function renderDashboard(){
@@ -308,8 +411,8 @@ function auditRows(items){return items.map(a=>`<tr><td>${escapeHtml(a.user_name|
 function renderSettings(){$('#content').innerHTML=`<div class="grid-2"><section class="panel"><div class="panel-head"><h3>إعدادات المنشأة</h3></div><div class="list"><div class="list-item"><span>الاسم</span><b>وردة أشبيليا</b></div><div class="list-item"><span>العملة</span><b>الريال السعودي SAR</b></div><div class="list-item"><span>المنطقة الزمنية</span><b>Asia/Riyadh</b></div><div class="list-item"><span>ضريبة القيمة المضافة</span><b>15%</b></div><div class="list-item"><span>قاعدة البيانات</span><b>Supabase PostgreSQL موحدة</b></div></div></section><section class="panel"><div class="panel-head"><h3>بيانات التجربة</h3></div><p style="color:var(--muted);line-height:1.8">المنتجات والموظف والمورد التجريبي مميزة داخل قاعدة البيانات ويمكن حذفها دون التأثير على بيانات العمل الفعلية.</p><button class="btn btn-danger" id="clearDemo">حذف البيانات التجريبية</button><hr style="border:0;border-top:1px solid var(--line);margin:22px 0"><h3>قبل التشغيل الفعلي</h3><p style="color:var(--muted);line-height:1.8">غيّر كلمة مرور الإدارة، اضبط رقم واتساب، أدخل المنتجات والمخزون الفعلي، وأنشئ حسابات الموظفين حسب الصلاحيات.</p></section></div>`;$('#clearDemo').onclick=async()=>{if(!guard('settings.clear_demo'))return;if(!confirm('سيتم حذف كل السجلات التجريبية فقط. هل أنت متأكد؟'))return;try{await api('/api/settings/clear-demo',{method:'POST'});toast('تم حذف البيانات التجريبية');state.cache={};await loadPublic();await renderDashboard();}catch(err){toast(err.message,'error')}};}
 
 async function renderNotifications(){try{const {items}=await api('/api/notifications');openForm('الإشعارات',`<div class="list">${items.length?items.map(n=>`<div class="list-item"><div><b>${escapeHtml(n.title)}</b><small>${escapeHtml(n.message)} · ${dt(n.created_at)}</small></div>${n.status==='unread'?'<span class="status amber">جديد</span>':'<span class="status gray">مقروء</span>'}</div>`).join(''):'<div class="empty">لا توجد إشعارات</div>'}</div><button class="btn btn-outline wide" id="markRead" style="margin-top:15px">تعليم الكل كمقروء</button>`,async()=>{});setTimeout(()=>{$('#markRead').onclick=async()=>{await api('/api/notifications/read',{method:'POST',body:{}});hide('formModal');loadNotificationCount();};},0);}catch(err){toast(err.message,'error')}}
-async function loadNotificationCount(){try{const {items}=await api('/api/notifications');$('#notificationCount').textContent=items.filter(x=>x.status==='unread').length;}catch{}}
+async function loadNotificationCount(){if(!$('#notificationCount')||!can('notifications.view'))return;try{const {items}=await api('/api/notifications');$('#notificationCount').textContent=items.filter(x=>x.status==='unread').length;}catch{}}
 
-window.addEventListener('wardat:permissions-changed',async()=>{try{state.user=(await api('/api/auth/me')).user;if(!state.user)return logout();renderNav();const meta=pages.find(p=>p.id===state.currentPage);if(!meta||!can(meta.permission)){const first=pages.find(p=>can(p.permission));if(first)await renderPage(first.id);else $('#content').innerHTML='<div class="empty">تم إلغاء صلاحيات القسم المفتوح.</div>';}else await renderPage(state.currentPage,true);toast('تم تحديث صلاحياتك تلقائيًا');}catch{}});
-window.addEventListener('wardat:user-disabled',()=>{state.user=null;showStore();show('loginModal');toast('تم إيقاف الحساب وإنهاء الوصول','error');});
+window.addEventListener('wardat:permissions-changed',async()=>{try{state.user=(await api('/api/auth/me')).user;if(!state.user)return logout();const correctPortal=portalForRole(state.user.role_code);if(correctPortal!==PORTAL_MODE){window.location.replace(portalUrl(correctPortal));return;}renderNav();const meta=availablePages().find(p=>p.id===state.currentPage);if(!meta||!can(meta.permission)){const first=availablePages()[0];if(first)await renderPage(first.id);else if($('#content'))$('#content').innerHTML='<div class="empty">تم إلغاء صلاحيات القسم المفتوح.</div>';}else await renderPage(state.currentPage,true);toast('تم تحديث صلاحياتك تلقائيًا');}catch{}});
+window.addEventListener('wardat:user-disabled',()=>{state.user=null;if(PORTAL_MODE==='customer')showStore();else showPortalLogin('تم إيقاف الحساب. راجع الإدارة.');toast('تم إيقاف الحساب وإنهاء الوصول','error');});
 init();
