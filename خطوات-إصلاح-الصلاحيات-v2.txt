@@ -1,0 +1,22 @@
+إصلاح خطأ ترقية صلاحيات وردة أشبيليا V2
+
+سبب الخطأ الأول:
+CREATE OR REPLACE VIEW حاول تغيير نوع purchase_price من numeric(14,2) إلى numeric بسبب CASE المستخدم لإخفاء الحقول المالية.
+تم تثبيت نوع كل حقل مالي صراحةً داخل جميع العروض، وليس purchase_price فقط.
+
+سبب الخطأ الثاني:
+فشل ملف الترقية قبل اكتماله، لذلك تم التراجع عن التغييرات ولم يُنشأ العمود permissions.is_active.
+لذلك ملف الفحص القديم أعطى column "is_active" does not exist.
+
+التنفيذ الصحيح:
+1) لا تشغّل ملف الفحص القديم مرة أخرى.
+2) افتح Supabase > SQL Editor > New query.
+3) انسخ كامل ملف wardat-permissions-rebuild-fixed-v2.sql.
+4) اضغط Run وانتظر Success بدون أي خط أحمر.
+5) افتح New query جديدة.
+6) شغّل wardat-permissions-verify-fixed-v2.sql.
+7) يجب أن تكون النتائج passed=true، ويجب أن تكون قائمة active_permission_without_resource_map فارغة.
+8) بعد نجاح SQL فقط، ارفع محتويات wardat-ashbilya-permissions-fixed-v2.zip إلى GitHub.
+
+ملاحظة:
+الملف آمن لإعادة التنفيذ ولا يحذف المستخدمين أو الطلبات أو الحجوزات أو بيانات المخزون.

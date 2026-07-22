@@ -8,5 +8,6 @@
   "permissions_count": 113,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-07-22T16:00:00+03:00"
+  "updated_at": "2026-07-22T17:35:00+03:00",
+  "permissions_build": "v2-view-type-fix"
 }
