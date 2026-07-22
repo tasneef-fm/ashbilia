@@ -385,7 +385,7 @@ function applyPagePermissions(page){
     purchases:{'#addSupplier':'suppliers.create'},
     reports:{'#exportReport':'reports.export','#printReport':'reports.print'},
     settings:{'#clearDemo':'settings.clear_demo'},
-    users:{'[data-manage-user]':'users.manage_permissions','[data-toggle-user]':'users.disable'}
+    users:{'#addUserBtn':'users.create','[data-manage-user]':'users.manage_permissions','[data-toggle-user]':'users.disable'}
   };
   window.PermissionsService.applyDom(rules[page]||{});
 }
@@ -393,10 +393,64 @@ function applyPagePermissions(page){
 async function renderUsers(){
   const [{items},{items:roles}]=await Promise.all([api('/api/access/users'),api('/api/access/roles')]);
   state.cache.accessUsers=items;state.cache.accessRoles=roles;
-  $('#content').innerHTML=`<div class="toolbar"><input class="search" id="usersSearch" placeholder="ابحث بالاسم أو البريد أو الدور"><div class="kpi-row"><span class="kpi-pill">المستخدمون ${items.length}</span><span class="kpi-pill">النشطون ${items.filter(x=>x.is_active).length}</span></div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>المستخدم</th><th>الدور</th><th>الحالة</th><th>نطاق البيانات</th><th>آخر دخول</th><th>إصدار الصلاحيات</th><th>الإجراءات</th></tr></thead><tbody id="usersRows">${userAccessRows(items)}</tbody></table></div>`;
+  $('#content').innerHTML=`<div class="toolbar">${can('users.create')?'<button class="btn btn-primary" id="addUserBtn">إضافة مستخدم موظف</button>':''}<input class="search" id="usersSearch" placeholder="ابحث بالاسم أو البريد أو الدور"><div class="kpi-row"><span class="kpi-pill">المستخدمون ${items.length}</span><span class="kpi-pill">النشطون ${items.filter(x=>x.is_active).length}</span></div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>المستخدم</th><th>الدور</th><th>الحالة</th><th>نطاق البيانات</th><th>آخر دخول</th><th>إصدار الصلاحيات</th><th>الإجراءات</th></tr></thead><tbody id="usersRows">${userAccessRows(items)}</tbody></table></div>`;
   $('#usersSearch').oninput=e=>{$('#usersRows').innerHTML=userAccessRows(items.filter(x=>`${x.name||''} ${x.email||''} ${x.role_name||''}`.toLowerCase().includes(e.target.value.toLowerCase())));bindUserAccessActions();};
-  bindUserAccessActions();applyPagePermissions('users');
+  bindUserAccessActions();
+  $('#addUserBtn')?.addEventListener('click',openAddStaffUser);
+  applyPagePermissions('users');
 }
+
+function openAddStaffUser(){
+  if(!guard('users.create'))return;
+  const allRoles=state.cache.accessRoles||[];
+  const roles=allRoles.filter(r=>r.code!=='customer'&&(state.user?.role_code==='super_admin'||r.code!=='super_admin'));
+  if(!roles.length)return toast('لا توجد أدوار موظفين متاحة','error');
+
+  openForm('إضافة مستخدم موظف',`<form class="form-grid" id="addStaffUserForm">
+    <label>اسم الموظف<input name="name" required maxlength="120" placeholder="الاسم الكامل"></label>
+    <label>البريد الإلكتروني<input type="email" name="email" required autocomplete="off" placeholder="employee@example.com"></label>
+    <label>رقم الجوال<input name="phone" inputmode="tel" maxlength="30" placeholder="05xxxxxxxx"></label>
+    <label>المسمى الوظيفي<input name="job_title" maxlength="120" placeholder="مثال: منسق ورود"></label>
+    <label>الدور<select name="role_code" required>${roles.map(r=>`<option value="${escapeHtml(r.code)}">${escapeHtml(r.name_ar)}</option>`).join('')}</select></label>
+    <label>نطاق البيانات<select name="access_scope">
+      <option value="assigned">المسند إليه فقط</option>
+      <option value="own">السجلات التي أنشأها</option>
+      <option value="specific">نطاق محدد</option>
+      ${state.user?.role_code==='super_admin'?'<option value="all">جميع البيانات</option>':''}
+    </select></label>
+    <label>كلمة مرور مؤقتة<input type="password" name="password" minlength="10" required autocomplete="new-password" placeholder="10 أحرف على الأقل"></label>
+    <label>تأكيد كلمة المرور<input type="password" name="password_confirm" minlength="10" required autocomplete="new-password"></label>
+    <label class="check-label"><input type="checkbox" name="create_employee" checked> إنشاء سجل موظف وربطه بالحساب</label>
+    <label class="check-label"><input type="checkbox" name="is_active" checked> تفعيل الحساب مباشرة</label>
+    <label class="span-2">سبب إنشاء المستخدم<input name="reason" required maxlength="250" placeholder="مثال: تعيين موظف مبيعات جديد"></label>
+    <div class="span-2 demo-note">سيتم إنشاء الحساب داخل Supabase Authentication وربطه بجدول الموظفين. لا تُحفظ كلمة المرور داخل سجل النظام.</div>
+    <button class="btn btn-primary span-2" type="submit">إنشاء المستخدم</button>
+  </form>`,async b=>{
+    if(String(b.password)!==String(b.password_confirm))throw new Error('كلمتا المرور غير متطابقتين');
+    if(String(b.password||'').length<10)throw new Error('كلمة المرور يجب ألا تقل عن 10 أحرف');
+
+    const result=await api('/api/access/users',{
+      method:'POST',
+      body:{
+        name:String(b.name||'').trim(),
+        email:String(b.email||'').trim().toLowerCase(),
+        phone:String(b.phone||'').trim(),
+        job_title:String(b.job_title||'').trim(),
+        role_code:b.role_code,
+        access_scope:b.access_scope,
+        password:b.password,
+        create_employee:Boolean(b.create_employee),
+        is_active:Boolean(b.is_active),
+        reason:String(b.reason||'').trim()
+      }
+    });
+
+    toast(`تم إنشاء المستخدم ${result.email||''}`);
+    await renderUsers();
+    if(result.user_id&&can('users.manage_permissions'))setTimeout(()=>openPermissionsManager(result.user_id),100);
+  });
+}
+
 function userAccessRows(items){return items.map(u=>`<tr><td><b>${escapeHtml(u.name||'بدون اسم')}</b><small>${escapeHtml(u.email||'')}</small></td><td>${escapeHtml(u.role_name||u.role_code)}</td><td>${u.is_active?'<span class="status green">نشط</span>':'<span class="status red">موقوف</span>'}</td><td>${escapeHtml(({all:'جميع البيانات',own:'سجلاته فقط',assigned:'المسند إليه',specific:'نطاق محدد'})[u.access_scope]||u.access_scope||'—')}</td><td>${dt(u.last_sign_in_at)}</td><td>${number(u.permissions_version||0)}</td><td class="actions"><button class="mini-btn" data-manage-user="${u.id}">الصلاحيات</button><button class="mini-btn" data-toggle-user="${u.id}" data-active="${u.is_active?'1':'0'}">${u.is_active?'إيقاف':'تفعيل'}</button></td></tr>`).join('');}
 function bindUserAccessActions(){
   $$('[data-manage-user]').forEach(b=>b.onclick=()=>openPermissionsManager(b.dataset.manageUser));

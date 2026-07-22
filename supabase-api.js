@@ -159,7 +159,7 @@ window.WardatBackend = (() => {
         [/^\/api\/smart\/suggestions$/, 'smart.view'], [/^\/api\/reports$/, 'reports.view'],
         [/^\/api\/notifications$/, 'notifications.view'], [/^\/api\/notifications\/read$/, 'notifications.resolve'],
         [/^\/api\/audit$/, 'audit.view'], [/^\/api\/settings\/clear-demo$/, 'settings.clear_demo'],
-        [/^\/api\/access\/users(?:\/[^/]+)?$/, method==='GET'?'users.view':method==='PATCH'?['users.edit','users.disable']:'users.manage_permissions'],
+        [/^\/api\/access\/users(?:\/[^/]+)?$/, method==='GET'?'users.view':method==='POST'?'users.create':method==='PATCH'?['users.edit','users.disable']:'users.manage_permissions'],
         [/^\/api\/access\/roles$/, 'roles.view'], [/^\/api\/access\//, 'users.manage_permissions']
       ];
       const rule = routeRules.find(([rx]) => rx.test(p));
@@ -257,6 +257,65 @@ window.WardatBackend = (() => {
 
 
     // إدارة المستخدمين والصلاحيات
+    if (p === '/api/access/users' && method === 'POST') {
+      requireLocal('users.create');
+
+      const email = String(body.email || '').trim().toLowerCase();
+      const password = String(body.password || '');
+      const name = String(body.name || '').trim();
+      if (!email || !name) throw new Error('الاسم والبريد الإلكتروني إلزاميان');
+      if (password.length < 10) throw new Error('كلمة المرور يجب ألا تقل عن 10 أحرف');
+
+      const creationToken = crypto.randomUUID();
+      const tempClient = window.supabase.createClient(cfg.supabaseUrl, cfg.supabaseAnonKey, {
+        auth: {
+          persistSession: false,
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+          storageKey: `wardat-create-user-${crypto.randomUUID()}`
+        },
+        global: { headers: { 'x-application-name': 'wardat-create-staff-user' } }
+      });
+
+      const signResult = await tempClient.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name,
+            phone: String(body.phone || '').trim(),
+            staff_creation_token: creationToken
+          }
+        }
+      });
+
+      if (signResult.error) throw new Error(translateError(signResult.error.message));
+      const createdUser = signResult.data?.user;
+      if (!createdUser?.id) throw new Error('تعذر إنشاء حساب المستخدم داخل Supabase');
+      if (Array.isArray(createdUser.identities) && createdUser.identities.length === 0) {
+        throw new Error('البريد الإلكتروني مستخدم في حساب موجود مسبقًا');
+      }
+
+      try {
+        const finalized = await rpc('finalize_staff_user', {
+          p_target_user: createdUser.id,
+          p_creation_token: creationToken,
+          p_name: name,
+          p_phone: String(body.phone || '').trim(),
+          p_role_code: String(body.role_code || ''),
+          p_job_title: String(body.job_title || '').trim() || null,
+          p_access_scope: String(body.access_scope || 'assigned'),
+          p_is_active: body.is_active !== false,
+          p_create_employee: body.create_employee !== false,
+          p_reason: String(body.reason || '').trim()
+        });
+        try { await tempClient.auth.signOut({ scope: 'local' }); } catch {}
+        return finalized;
+      } catch (error) {
+        try { await tempClient.auth.signOut({ scope: 'local' }); } catch {}
+        throw new Error(`${error.message}. تم إنشاء حساب مصادقة أولي كعميل؛ راجع المستخدمين قبل إعادة المحاولة.`);
+      }
+    }
     if (p === '/api/access/users' && method === 'GET') return { items: await rpc('list_access_users') };
     if (p === '/api/access/roles' && method === 'GET') return { items: await rpc('list_access_roles') };
     const accessUser = p.match(/^\/api\/access\/users\/([^/]+)$/);
