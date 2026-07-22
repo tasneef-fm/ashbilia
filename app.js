@@ -19,8 +19,18 @@ function pageLabel(meta) {
   return meta?.label || 'النظام';
 }
 
-const $ = (s, root=document) => root.querySelector(s);
-const $$ = (s, root=document) => [...root.querySelectorAll(s)];
+function resolveDomRoot(root=document) {
+  if (typeof root === 'string') return document.querySelector(root);
+  return root || document;
+}
+const $ = (s, root=document) => {
+  const scope = resolveDomRoot(root);
+  return typeof scope?.querySelector === 'function' ? scope.querySelector(s) : null;
+};
+const $$ = (s, root=document) => {
+  const scope = resolveDomRoot(root);
+  return typeof scope?.querySelectorAll === 'function' ? Array.from(scope.querySelectorAll(s)) : [];
+};
 const state = {
   user: null,
   publicData: {products:[],categories:[],services:[],reviews:[]},
@@ -126,7 +136,19 @@ async function init(){
     if(user){
       state.user=user;
       const correctPortal=portalForRole(user.role_code);
-      if(correctPortal !== PORTAL_MODE){ window.location.replace(portalUrl(correctPortal)); return; }
+      if(correctPortal !== PORTAL_MODE){
+        // لا نُرجع صفحة الإدارة فورًا إلى المتجر بسبب جلسة عميل قديمة؛
+        // ننهي الجلسة القديمة ونُبقي صفحة الدخول الإدارية ظاهرة.
+        if (correctPortal === 'customer') {
+          await api('/api/auth/logout',{method:'POST'}).catch(()=>{});
+          window.PermissionsService?.clear();
+          state.user=null;
+          showPortalLogin('تم إنهاء جلسة عميل سابقة. سجّل الدخول بحساب الإدارة أو الموظف.');
+          return;
+        }
+        window.location.replace(portalUrl(correctPortal));
+        return;
+      }
       await showApp();
     } else showPortalLogin();
   } catch (error) {
