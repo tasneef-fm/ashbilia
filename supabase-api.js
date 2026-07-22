@@ -89,6 +89,9 @@ window.WardatBackend = (() => {
       available_qty: Number(p.available_qty ?? (Number(p.stock_qty || 0) - Number(p.reserved_qty || 0)))
     }));
   }
+  function pageArgs(u,defaultSize=40){const page=Math.max(1,Number(u.searchParams.get('page')||1)),pageSize=Math.max(10,Math.min(100,Number(u.searchParams.get('page_size')||defaultSize))),from=(page-1)*pageSize;return{page,pageSize,from,to:from+pageSize-1};}
+  function safeSearch(value=''){return String(value).trim().replace(/[,()%*]/g,' ').slice(0,100);}
+  function pagedResult(data,count,page,pageSize){return{items:data||[],total:Number(count||0),page,page_size:pageSize,pages:Math.max(1,Math.ceil(Number(count||0)/pageSize))};}
 
   async function request(rawUrl, options = {}) {
     ensureClient();
@@ -141,6 +144,11 @@ window.WardatBackend = (() => {
     if (p === '/api/public/bookings' && method === 'POST') return await rpc('create_public_booking', { p_payload: body });
 
 
+    if (p === '/api/system/client-error' && method === 'POST') {
+      try { await rpc('log_client_error', { p_message: String(body.message || ''), p_context: String(body.context || ''), p_stack: String(body.stack || '') }); } catch {}
+      return { ok: true };
+    }
+
     // تحقق مركزي في خدمة البيانات. تبقى RLS وRPC هي الحماية النهائية.
     if (!options.skipPermissionCheck) {
       const routeRules = [
@@ -158,7 +166,7 @@ window.WardatBackend = (() => {
         [/^\/api\/purchase-orders$/, method==='GET'?'purchases.view':'purchases.create'], [/^\/api\/purchase-orders\/[^/]+\/receive$/, 'purchases.receive'],
         [/^\/api\/smart\/suggestions$/, 'smart.view'], [/^\/api\/reports$/, 'reports.view'],
         [/^\/api\/notifications$/, 'notifications.view'], [/^\/api\/notifications\/read$/, 'notifications.resolve'],
-        [/^\/api\/audit$/, 'audit.view'], [/^\/api\/settings\/clear-demo$/, 'settings.clear_demo'],
+        [/^\/api\/audit$/, 'audit.view'], [/^\/api\/data-quality$/, 'data_quality.view'], [/^\/api\/data-quality\/action$/, 'data_quality.resolve'], [/^\/api\/settings\/clear-demo$/, 'settings.clear_demo'],
         [/^\/api\/access\/users(?:\/[^/]+)?$/, method==='GET'?'users.view':method==='POST'?'users.create':method==='PATCH'?['users.edit','users.disable']:'users.manage_permissions'],
         [/^\/api\/access\/roles$/, 'roles.view'], [/^\/api\/access\//, 'users.manage_permissions']
       ];
@@ -175,10 +183,11 @@ window.WardatBackend = (() => {
     }
     if (p === '/api/categories' && method === 'POST') return await rpc('create_category', { p_payload: body });
     if (p === '/api/products' && method === 'GET') {
-      const activeOnly = u.searchParams.get('active') === '1';
-      let q = c.from('v_products').select('*').order('created_at', { ascending: false });
+      const activeOnly = u.searchParams.get('active') === '1',search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u,activeOnly?100:40);
+      let q = c.from('v_products').select('*',{count:'exact'}).order('created_at', { ascending: false }).range(from,to);
       if (activeOnly) q = q.eq('is_active', true);
-      return { items: flattenProducts(unwrap(await q)) };
+      if (search) q=q.or(`name_ar.ilike.%${search}%,sku.ilike.%${search}%,barcode.ilike.%${search}%`);
+      const result=await q;const data=unwrap(result);return {...pagedResult(flattenProducts(data),result.count,page,pageSize)};
     }
     if (p === '/api/products' && method === 'POST') return await rpc('upsert_product', { p_id: null, p_payload: body });
     const productMatch = p.match(/^\/api\/products\/([^/]+)$/);
@@ -195,17 +204,17 @@ window.WardatBackend = (() => {
     if (p === '/api/inventory/adjust' && method === 'POST') return await rpc('adjust_inventory', { p_payload: body });
 
     // العملاء
-    if (p === '/api/customers' && method === 'GET') return { items: await rows('v_customers', '*', q => q.order('created_at', { ascending: false })) };
+    if (p === '/api/customers' && method === 'GET') {const search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u);let q=c.from('v_customers').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,to);if(search)q=q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,customer_no.ilike.%${search}%`);const result=await q;return pagedResult(unwrap(result),result.count,page,pageSize);}
     if (p === '/api/customers' && method === 'POST') return await rpc('create_customer', { p_payload: body });
 
     // الطلبات ونقطة البيع
-    if (p === '/api/orders' && method === 'GET') return { items: await rows('v_orders', '*', q => q.order('created_at', { ascending: false })) };
+    if (p === '/api/orders' && method === 'GET') {const search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u);let q=c.from('v_orders').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,to);if(search)q=q.or(`order_no.ilike.%${search}%,customer_name.ilike.%${search}%,phone.ilike.%${search}%`);const result=await q;return pagedResult(unwrap(result),result.count,page,pageSize);}
     if (p === '/api/orders' && method === 'POST') return await rpc('create_pos_order', { p_payload: body });
     const orderMatch = p.match(/^\/api\/orders\/([^/]+)$/);
     if (orderMatch && method === 'PATCH') return await rpc('update_order_status', { p_order_id: orderMatch[1], p_status: body.status, p_reason: body.reason || '' });
 
     // الحجوزات
-    if (p === '/api/bookings' && method === 'GET') return { items: await rows('v_bookings', '*', q => q.order('start_at', { ascending: false })) };
+    if (p === '/api/bookings' && method === 'GET') {const search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u);let q=c.from('v_bookings').select('*',{count:'exact'}).order('start_at',{ascending:false}).range(from,to);if(search)q=q.or(`booking_no.ilike.%${search}%,customer_name.ilike.%${search}%,event_type.ilike.%${search}%,phone.ilike.%${search}%`);const result=await q;return pagedResult(unwrap(result),result.count,page,pageSize);}
     if (p === '/api/bookings' && method === 'POST') return await rpc('create_staff_booking', { p_payload: body });
     const bookingMatch = p.match(/^\/api\/bookings\/([^/]+)$/);
     if (bookingMatch && method === 'PATCH') return await rpc('update_booking_record', {
@@ -235,6 +244,11 @@ window.WardatBackend = (() => {
     if (p === '/api/purchase-orders' && method === 'POST') return await rpc('create_purchase_order', { p_payload: body });
     const receiveMatch = p.match(/^\/api\/purchase-orders\/([^/]+)\/receive$/);
     if (receiveMatch && method === 'POST') return await rpc('receive_purchase_order', { p_purchase_order_id: receiveMatch[1] });
+
+    // جودة البيانات ومسارات الحالات
+    if (p === '/api/workflows/transitions' && method === 'GET') return await rpc('get_allowed_status_transitions',{p_entity_type:u.searchParams.get('entity'),p_current_status:u.searchParams.get('status')});
+    if (p === '/api/data-quality' && method === 'GET') return await rpc('get_data_quality_report',{p_limit:200});
+    if (p === '/api/data-quality/action' && method === 'POST') return await rpc('resolve_data_quality_issue',{p_issue_code:body.issue_code,p_entity_id:String(body.entity_id),p_action:body.action,p_reason:body.reason});
 
     // الذكاء والتقارير
     if (p === '/api/smart/suggestions' && method === 'GET') return await rpc('get_smart_suggestions');
@@ -337,5 +351,6 @@ window.WardatBackend = (() => {
     throw new Error('المسار غير مدعوم في نسخة GitHub Pages');
   }
 
-  return { request, isConfigured: () => configured, client: () => client };
+  async function logClientError(message,context,stack){if(!client||!currentAccess)return;try{await request('/api/system/client-error',{method:'POST',body:{message,context,stack},skipPermissionCheck:true});}catch{}}
+  return { request, logClientError, isConfigured: () => configured, client: () => client };
 })();

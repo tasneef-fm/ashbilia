@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.07.22-users-create-v5",
+  "version": "2026.07.22-data-quality-v6",
   "generated": "2026-07-21",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 113,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-07-22T18:40:00+03:00",
+  "updated_at": "2026-07-22T19:15:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -19,5 +19,16 @@
   "admin_verify_sql": "supabase/verify-main-admin.sql",
   "users_create": true,
   "users_create_permission": "users.create",
-  "users_create_rpc": "finalize_staff_user"
+  "users_create_rpc": "finalize_staff_user",
+  "data_quality_center": true,
+  "server_pagination": [
+    "products",
+    "orders",
+    "bookings",
+    "customers"
+  ],
+  "workflow_transitions": true,
+  "idempotency_extended": true,
+  "form_autosave": true,
+  "client_error_log": true
 }
