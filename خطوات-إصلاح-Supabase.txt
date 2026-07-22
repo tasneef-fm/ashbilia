@@ -1,0 +1,18 @@
+إصلاح خطأ Supabase لتطبيق وردة أشبيليا
+
+سبب الخطأ:
+ملف schema.sql توقف عند دالة لوحة المعلومات بسبب اسم العمود day بدون AS صريح.
+وبسبب توقف ملف schema.sql لم يتم إنشاء جدول product_categories، لذلك فشل seed-demo.sql.
+
+الترتيب الصحيح:
+1) افتح Supabase > SQL Editor.
+2) افتح New query.
+3) انسخ كامل ملف supabase/schema.sql من النسخة المصححة.
+4) اضغط Run وانتظر رسالة Success.
+5) افتح Query جديدة.
+6) شغّل supabase/verify-installation.sql للتأكد من ظهور الجداول والدالة.
+7) بعد نجاح الفحص فقط، شغّل supabase/seed-demo.sql إذا أردت بيانات تجريبية.
+
+مهم:
+- لا تشغّل seed-demo.sql قبل schema.sql.
+- إذا ظهر خطأ جديد، لا تكمل تشغيل seed-demo.sql.
