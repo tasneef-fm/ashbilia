@@ -12,7 +12,7 @@ window.PermissionsService = (() => {
   const listeners = new Set();
 
   function cacheKey(userId, version) {
-    return `wardat:user-permissions:${userId}:${version}`;
+    return `wardat:v13:user-permissions:${userId}:${version}`;
   }
   function notify() { listeners.forEach(fn => { try { fn(snapshot()); } catch (_) {} }); }
   function snapshot() {
@@ -40,6 +40,7 @@ window.PermissionsService = (() => {
   }
   function can(permissionKey) {
     if (!currentUser || currentUser.is_active === false) return false;
+    if (['super_admin','management','admin'].includes(currentUser.role_code)) return true;
     return permissionSet.has(permissionKey);
   }
   function canAny(keys = []) { return keys.some(can); }
@@ -94,7 +95,7 @@ window.PermissionsService = (() => {
     stopPolling();
     if (currentUser?.id) {
       try {
-        Object.keys(localStorage).filter(k => k.startsWith(`wardat:user-permissions:${currentUser.id}:`)).forEach(k => localStorage.removeItem(k));
+        Object.keys(localStorage).filter(k => k.startsWith(`wardat:v13:user-permissions:${currentUser.id}:`)).forEach(k => localStorage.removeItem(k));
       } catch (_) {}
     }
     currentUser = null;
