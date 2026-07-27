@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.07.22-data-quality-v6",
+  "version": "2026.07.27-hr-payroll-smartfilters-v8",
   "generated": "2026-07-21",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 113,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-07-22T19:15:00+03:00",
+  "updated_at": "2026-07-27T09:30:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -30,5 +30,13 @@
   "workflow_transitions": true,
   "idempotency_extended": true,
   "form_autosave": true,
-  "client_error_log": true
+  "client_error_log": true,
+  "data_quality_fix": "min_uuid_fixed",
+  "logout_button_top": true,
+  "logout_button_sidebar_text": true,
+  "smart_filters": true,
+  "attendance": true,
+  "leave_management": true,
+  "payroll": true,
+  "employee_compensation": true
 }

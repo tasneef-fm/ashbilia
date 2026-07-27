@@ -2,7 +2,7 @@
 
 const PORTAL_MODE = document.body?.dataset.portal || 'customer';
 const ADMIN_ROLE_CODES = new Set(['super_admin','admin','management','accountant']);
-const EMPLOYEE_PAGE_IDS = new Set(['dashboard','pos','orders','bookings','quotes','workorders','products','inventory','purchases','customers','smart','reports']);
+const EMPLOYEE_PAGE_IDS = new Set(['dashboard','pos','orders','bookings','quotes','workorders','products','inventory','purchases','customers','smart','reports','attendance','leaves','payroll']);
 
 function portalForRole(roleCode='') {
   if (roleCode === 'customer') return 'customer';
@@ -55,6 +55,10 @@ const pages = [
   {id:'customers',icon:'◎',label:'العملاء والولاء',permission:'customers.view'},
   {id:'smart',icon:'✦',label:'المساعد الذكي',permission:'smart.view'},
   {id:'reports',icon:'▥',label:'التقارير',permission:'reports.view'},
+  {id:'attendance',icon:'◷',label:'الحضور والانصراف',permission:'attendance.view_self'},
+  {id:'leaves',icon:'⌛',label:'الإجازات والمأذونيات',permission:'leaves.view'},
+  {id:'payroll',icon:'﷼',label:'مسير الرواتب',permission:'payroll.view_self'},
+  {id:'compensation',icon:'±',label:'السلف والجزاءات والمكافآت',permission:'compensation.view'},
   {id:'users',icon:'♙',label:'المستخدمون والصلاحيات',permission:'users.view'},
   {id:'audit',icon:'⌁',label:'سجل التعديلات',permission:'audit.view'},
   {id:'dataquality',icon:'◇',label:'جودة البيانات',permission:'data_quality.view'},
@@ -92,7 +96,7 @@ function statusMeta(s){
     waiting_contact:['بانتظار التواصل','amber'],inspection_scheduled:['موعد معاينة','amber'],inspected:['تمت المعاينة','green'],quotation_preparing:['إعداد عرض السعر','amber'],quotation_sent:['تم إرسال العرض','amber'],pending_client:['بانتظار العميل','amber'],deposit_paid:['تم دفع العربون','green'],confirmed:['مؤكد','green'],installing:['جاري التركيب','amber'],executed:['تم التنفيذ','green'],dismantled:['تم الفك','green'],
     draft:['مسودة','gray'],sent:['مرسل','amber'],approved:['معتمد','green'],rejected:['مرفوض','red'],
     received:['تم الاستلام','amber'],ready_to_leave:['جاهز للخروج','green'],on_way:['في الطريق','amber'],arrived:['وصل الموقع','amber'],installed:['تم التركيب','green'],documented:['تم التوثيق','green'],waiting_dismantle:['بانتظار الفك','amber'],equipment_returned:['تمت إعادة المعدات','green'],note:['توجد ملاحظة','red'],
-    pending:['معلق','amber'],received_po:['تم الاستلام','green']
+    pending:['معلق','amber'],received_po:['تم الاستلام','green'],present:['حاضر','green'],late:['متأخر','amber'],early_leave:['انصراف مبكر','amber'],absent:['غائب','red'],leave:['إجازة','gray'],missing_checkout:['لم يسجل انصراف','red'],pending_supervisor:['بانتظار المسؤول','amber'],pending_admin:['بانتظار الإدارة','amber'],under_review:['تحت المراجعة','amber'],pending_approval:['بانتظار الاعتماد','amber'],ready_to_pay:['جاهز للصرف','green'],partially_paid:['مصروف جزئيًا','amber']
   };
   return map[s]||[s||'—','gray'];
 }
@@ -109,7 +113,7 @@ function draftKey(title,form){return form?.dataset?.draftKey||`wardat:draft:${st
 function bindFormDraft(title,form){if(!form||form.dataset.noDraft==='true')return()=>{};const key=draftKey(title,form);try{const saved=JSON.parse(localStorage.getItem(key)||'null');if(saved){Object.entries(saved).forEach(([name,value])=>{const nodes=$$(`[name="${CSS.escape(name)}"]`,form);nodes.forEach(node=>{if(node.type==='password'||node.type==='file')return;if(node.type==='checkbox')node.checked=Boolean(value);else if(node.type==='radio')node.checked=node.value===value;else node.value=value??'';});});toast('تم استعادة مسودة النموذج');}}catch{}
   const save=debounce(()=>{const data={};$$('[name]',form).forEach(node=>{if(node.type==='password'||node.type==='file'||!node.name)return;if(node.type==='checkbox')data[node.name]=node.checked;else if(node.type==='radio'){if(node.checked)data[node.name]=node.value;}else data[node.name]=node.value;});localStorage.setItem(key,JSON.stringify(data));},250);form.addEventListener('input',save);form.addEventListener('change',save);return()=>localStorage.removeItem(key);}
 function openForm(title, html, onSubmit){
-  $('#formModalContent').innerHTML=`<h2>${escapeHtml(title)}</h2>${html}`;show('formModal');
+  $('#formModalContent').innerHTML=`<h2>${escapeHtml(title)}</h2>${html}`;show('formModal');setTimeout(()=>enhanceSearchableSelects($('#formModalContent')),0);
   const form=$('#formModalContent form');const clearDraft=bindFormDraft(title,form);if(form)form.addEventListener('submit',async e=>{e.preventDefault();const btn=$('button[type=submit]',form);btn.disabled=true;try{await onSubmit(formDataObj(form),form);clearDraft();hide('formModal');}catch(err){toast(err.message,'error')}finally{btn.disabled=false;}});
 }
 
@@ -184,6 +188,7 @@ function bindGlobal(){
 
   if ($('#loginForm')) $('#loginForm').onsubmit=login;
   if ($('#logoutBtn')) $('#logoutBtn').onclick=logout;
+  if ($('#logoutTopBtn')) $('#logoutTopBtn').onclick=logout;
   if ($('#backToStore')) $('#backToStore').onclick=()=>window.location.href='index.html';
   if ($('#menuBtn')) $('#menuBtn').onclick=()=>$('.sidebar')?.classList.toggle('open');
   if ($('#refreshBtn')) $('#refreshBtn').onclick=()=>state.currentPage&&renderPage(state.currentPage,true);
@@ -282,8 +287,8 @@ function renderNav(){
   nav.innerHTML=allowed.map(p=>`<button class="nav-item ${state.currentPage===p.id?'active':''}" data-page="${p.id}"><span class="ico">${p.icon}</span>${escapeHtml(pageLabel(p))}</button>`).join('');
   $$('[data-page]',nav).forEach(b=>b.onclick=()=>{state.currentPage=b.dataset.page;renderNav();renderPage(state.currentPage);$('.sidebar')?.classList.remove('open');});
 }
-async function renderPage(page,force=false){const meta=availablePages().find(p=>p.id===page);if(!meta||!can(meta.permission)){state.currentPage=null;renderNav();$('#pageTitle').textContent='غير مصرح';$('#pageSubtitle').textContent='تم منع فتح الرابط المباشر';$('#content').innerHTML='<div class="empty"><h3>ليس لديك صلاحية لفتح هذا القسم</h3><p>تم منع تحميل بيانات القسم.</p></div>';return;}state.currentPage=page;renderNav();$('#pageTitle').textContent=pageLabel(meta);$('#pageSubtitle').textContent=pageSub(page);$('#content').innerHTML='<div class="empty">جاري تحميل البيانات...</div>';try{switch(page){case'dashboard':await renderDashboard();break;case'products':await renderProducts();break;case'inventory':await renderInventory();break;case'pos':await renderPOS();break;case'orders':await renderOrders();break;case'bookings':await renderBookings();break;case'quotes':await renderQuotes();break;case'workorders':await renderWorkOrders();break;case'customers':await renderCustomers();break;case'purchases':await renderPurchases();break;case'smart':await renderSmart();break;case'reports':await renderReports();break;case'users':await renderUsers();break;case'audit':await renderAudit();break;case'dataquality':await renderDataQuality();break;case'settings':renderSettings();break;default:$('#content').innerHTML='<div class="empty">القسم قيد الإعداد</div>';}applyPagePermissions(page);}catch(err){$('#content').innerHTML=`<div class="empty">${escapeHtml(err.message)}</div>`;toast(err.message,'error');}}
-function pageSub(p){return {dashboard:'نظرة مباشرة على التشغيل والمبيعات',products:'إدارة المنتجات والأسعار والتصنيفات',inventory:'الكميات والحركات والتنبيهات',pos:'بيع مباشر وإصدار فاتورة وخصم المخزون',orders:'متابعة الطلبات والمدفوعات والتسليم',bookings:'تقويم الأعراس والمناسبات والمعاينات',quotes:'من عرض السعر إلى الحجز وأمر العمل',workorders:'تنفيذ المهام والتوثيق وإعادة المعدات',customers:'سجل العميل والطلبات ونقاط الولاء',purchases:'الموردون وأوامر الشراء والاستلام',smart:'تنبيهات واقتراحات مبنية على بيانات النظام',reports:'تقارير قابلة للفلترة والتصدير',users:'إدارة المستخدمين والأدوار والصلاحيات الفعلية',audit:'كل تعديل وحذف واعتماد داخل النظام',dataquality:'كشف التكرار وعدم التطابق والأخطاء قبل أن تؤثر على التشغيل',settings:'بيانات المنشأة والتجربة والإعدادات'}[p]||'';}
+async function renderPage(page,force=false){const meta=availablePages().find(p=>p.id===page);if(!meta||!can(meta.permission)){state.currentPage=null;renderNav();$('#pageTitle').textContent='غير مصرح';$('#pageSubtitle').textContent='تم منع فتح الرابط المباشر';$('#content').innerHTML='<div class="empty"><h3>ليس لديك صلاحية لفتح هذا القسم</h3><p>تم منع تحميل بيانات القسم.</p></div>';return;}state.currentPage=page;renderNav();$('#pageTitle').textContent=pageLabel(meta);$('#pageSubtitle').textContent=pageSub(page);$('#content').innerHTML='<div class="empty">جاري تحميل البيانات...</div>';try{switch(page){case'dashboard':await renderDashboard();break;case'products':await renderProducts();break;case'inventory':await renderInventory();break;case'pos':await renderPOS();break;case'orders':await renderOrders();break;case'bookings':await renderBookings();break;case'quotes':await renderQuotes();break;case'workorders':await renderWorkOrders();break;case'customers':await renderCustomers();break;case'purchases':await renderPurchases();break;case'smart':await renderSmart();break;case'reports':await renderReports();break;case'users':await renderUsers();break;case'audit':await renderAudit();break;case'dataquality':await renderDataQuality();break;case'attendance':await renderAttendance();break;case'leaves':await renderLeaves();break;case'payroll':await renderPayroll();break;case'compensation':await renderCompensation();break;case'settings':renderSettings();break;default:$('#content').innerHTML='<div class="empty">القسم قيد الإعداد</div>';}applyPagePermissions(page);enhanceCurrentPageTables(page);enhanceSearchableSelects($('#content'));}catch(err){$('#content').innerHTML=`<div class="empty">${escapeHtml(err.message)}</div>`;toast(err.message,'error');}}
+function pageSub(p){return {dashboard:'نظرة مباشرة على التشغيل والمبيعات',products:'إدارة المنتجات والأسعار والتصنيفات',inventory:'الكميات والحركات والتنبيهات',pos:'بيع مباشر وإصدار فاتورة وخصم المخزون',orders:'متابعة الطلبات والمدفوعات والتسليم',bookings:'تقويم الأعراس والمناسبات والمعاينات',quotes:'من عرض السعر إلى الحجز وأمر العمل',workorders:'تنفيذ المهام والتوثيق وإعادة المعدات',customers:'سجل العميل والطلبات ونقاط الولاء',purchases:'الموردون وأوامر الشراء والاستلام',smart:'تنبيهات واقتراحات مبنية على بيانات النظام',reports:'تقارير قابلة للفلترة والتصدير',users:'إدارة المستخدمين والأدوار والصلاحيات الفعلية',audit:'كل تعديل وحذف واعتماد داخل النظام',dataquality:'كشف التكرار وعدم التطابق والأخطاء قبل أن تؤثر على التشغيل',attendance:'تسجيل وتحضير ومراجعة الحضور والغياب والأوفر تايم',leaves:'طلبات الإجازات والمأذونيات وربطها بالحضور والراتب',payroll:'الاحتساب والمراجعة والاعتماد والقسائم والصرف',compensation:'السلف والأقساط والجزاءات والمكافآت والعمولات',settings:'بيانات المنشأة والتجربة والإعدادات'}[p]||'';}
 
 async function renderDashboard(){
   const d=await api('/api/dashboard');const m=d.metrics;

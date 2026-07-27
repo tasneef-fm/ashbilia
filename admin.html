@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#d5aa5b">
   <title>لوحة إدارة وردة أشبيليا</title>
   <link rel="icon" href="assets/logo.png">
-  <link rel="stylesheet" href="styles.css?v=20260722-data-quality-v6">
+  <link rel="stylesheet" href="styles.css?v=20260727-hr-payroll-filters-v8">
 </head>
 <body data-portal="admin">
   <div id="toast" class="toast"></div>
@@ -37,13 +37,13 @@
     <aside class="sidebar">
       <div class="side-brand"><img src="assets/logo.png" alt=""><div><strong>وردة أشبيليا</strong><small id="portalSideLabel">نظام الإدارة</small></div></div>
       <nav id="sideNav"></nav>
-      <div class="side-user"><div class="avatar" id="userAvatar">و</div><div><strong id="userName">المستخدم</strong><small id="userRole">الدور</small></div><button id="logoutBtn" title="تسجيل الخروج">↪</button></div>
+      <div class="side-user"><div class="avatar" id="userAvatar">و</div><div><strong id="userName">المستخدم</strong><small id="userRole">الدور</small></div><button id="logoutBtn" class="side-logout-btn" title="تسجيل الخروج">تسجيل الخروج</button></div>
     </aside>
     <div class="app-main">
       <header class="topbar">
         <button class="menu-btn" id="menuBtn">☰</button>
         <div><h1 id="pageTitle">لوحة الإدارة</h1><p id="pageSubtitle">الإدارة والمبيعات والتشغيل</p></div>
-        <div class="top-actions"><button class="icon-btn" id="refreshBtn">تحديث</button><button class="icon-btn" id="notificationsBtn">الإشعارات <b id="notificationCount">0</b></button><button class="btn btn-outline" id="backToStore">صفحة العميل</button></div>
+        <div class="top-actions"><button class="icon-btn" id="refreshBtn">تحديث</button><button class="icon-btn" id="notificationsBtn">الإشعارات <b id="notificationCount">0</b></button><button class="btn btn-outline" id="backToStore">صفحة العميل</button><button class="btn btn-outline" id="logoutTopBtn">تسجيل الخروج</button></div>
       </header>
       <main id="content" class="content"></main>
     </div>
@@ -51,10 +51,11 @@
 
   <div id="formModal" class="modal hidden"><div class="modal-card wide-card"><button class="modal-close" data-close="formModal">×</button><div id="formModalContent"></div></div></div>
 
-  <script src="config.js?v=20260722-data-quality-v6"></script>
+  <script src="config.js?v=20260727-hr-payroll-filters-v8"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="permissions-service.js?v=20260722-data-quality-v6"></script>
-  <script src="supabase-api.js?v=20260722-data-quality-v6"></script>
-  <script src="app.js?v=20260722-data-quality-v6"></script>
+  <script src="permissions-service.js?v=20260727-hr-payroll-filters-v8"></script>
+  <script src="supabase-api.js?v=20260727-hr-payroll-filters-v8"></script>
+  <script src="hr-payroll-v8.js?v=20260727-hr-payroll-filters-v8"></script>
+  <script src="app.js?v=20260727-hr-payroll-filters-v8"></script>
 </body>
 </html>

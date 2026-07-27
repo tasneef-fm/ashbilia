@@ -166,7 +166,7 @@ window.WardatBackend = (() => {
         [/^\/api\/purchase-orders$/, method==='GET'?'purchases.view':'purchases.create'], [/^\/api\/purchase-orders\/[^/]+\/receive$/, 'purchases.receive'],
         [/^\/api\/smart\/suggestions$/, 'smart.view'], [/^\/api\/reports$/, 'reports.view'],
         [/^\/api\/notifications$/, 'notifications.view'], [/^\/api\/notifications\/read$/, 'notifications.resolve'],
-        [/^\/api\/audit$/, 'audit.view'], [/^\/api\/data-quality$/, 'data_quality.view'], [/^\/api\/data-quality\/action$/, 'data_quality.resolve'], [/^\/api\/settings\/clear-demo$/, 'settings.clear_demo'],
+        [/^\/api\/audit$/, 'audit.view'], [/^\/api\/attendance\/state$/, 'attendance.view'], [/^\/api\/attendance\/clock$/, 'attendance.clock'], [/^\/api\/attendance\/dashboard$/, 'attendance.view'], [/^\/api\/attendance\/month$/, 'attendance.view'], [/^\/api\/leaves\/types$/, 'leaves.view'], [/^\/api\/leaves$/, method==='GET'?'leaves.view':'leaves.create'], [/^\/api\/leaves\/[^/]+$/, 'leaves.approve'], [/^\/api\/payroll\/my-payslips$/, 'payroll.view_self'], [/^\/api\/payroll\/runs$/, method==='GET'?'payroll.view':'payroll.create'], [/^\/api\/payroll\/runs\/[^/]+$/, 'payroll.view'], [/^\/api\/payroll\/runs\/[^/]+\/calculate$/, 'payroll.recalculate'], [/^\/api\/payroll\/runs\/[^/]+\/status$/, 'payroll.approve'], [/^\/api\/payroll\/items\/[^/]+\/pay$/, 'payroll.pay'], [/^\/api\/compensation$/, method==='GET'?'compensation.view':'compensation.create'], [/^\/api\/compensation\/[^/]+\/[^/]+\/approve$/, 'compensation.approve'], [/^\/api\/filter-presets$/, method==='GET'?'filters.use':'filters.save'], [/^\/api\/data-quality$/, 'data_quality.view'], [/^\/api\/data-quality\/action$/, 'data_quality.resolve'], [/^\/api\/settings\/clear-demo$/, 'settings.clear_demo'],
         [/^\/api\/access\/users(?:\/[^/]+)?$/, method==='GET'?'users.view':method==='POST'?'users.create':method==='PATCH'?['users.edit','users.disable']:'users.manage_permissions'],
         [/^\/api\/access\/roles$/, 'roles.view'], [/^\/api\/access\//, 'users.manage_permissions']
       ];
@@ -244,6 +244,34 @@ window.WardatBackend = (() => {
     if (p === '/api/purchase-orders' && method === 'POST') return await rpc('create_purchase_order', { p_payload: body });
     const receiveMatch = p.match(/^\/api\/purchase-orders\/([^/]+)\/receive$/);
     if (receiveMatch && method === 'POST') return await rpc('receive_purchase_order', { p_purchase_order_id: receiveMatch[1] });
+
+    // الحضور والإجازات والرواتب والفلاتر V8
+    if (p === '/api/hr/setup' && method === 'GET') return await rpc('get_hr_setup');
+    if (p === '/api/hr/locations' && method === 'POST') return await rpc('save_work_location',{p_payload:body});
+    if (p === '/api/hr/shifts' && method === 'POST') return await rpc('save_work_shift',{p_payload:body});
+    if (p === '/api/hr/assignments' && method === 'POST') return await rpc('save_shift_assignment',{p_payload:body});
+    if (p === '/api/hr/salary-profile' && method === 'POST') return await rpc('save_salary_profile',{p_payload:body});
+    if (p === '/api/attendance/manual' && method === 'POST') return await rpc('save_manual_attendance',{p_payload:body});
+    if (p === '/api/attendance/state' && method === 'GET') return await rpc('get_my_attendance_state');
+    if (p === '/api/attendance/clock' && method === 'POST') return await rpc('attendance_clock',{p_action:body.action,p_lat:body.lat??null,p_lng:body.lng??null,p_accuracy:body.accuracy??null,p_device:body.device||null,p_photo:body.photo||null,p_qr_token:body.qr_token||null});
+    if (p === '/api/attendance/dashboard' && method === 'GET') return await rpc('get_attendance_dashboard',{p_date:u.searchParams.get('date')||null,p_branch:u.searchParams.get('branch')||null,p_department:u.searchParams.get('department')||null,p_status:u.searchParams.get('status')||null});
+    if (p === '/api/attendance/month' && method === 'GET') return await rpc('get_attendance_month',{p_employee_id:u.searchParams.get('employee_id')||null,p_month:u.searchParams.get('month')||new Date().toISOString().slice(0,10)});
+    if (p === '/api/leaves/types' && method === 'GET') return {items:await rows('leave_types','*',q=>q.eq('is_active',true).order('name'))};
+    if (p === '/api/leaves' && method === 'GET') return await rpc('get_leave_requests',{p_status:u.searchParams.get('status')||null,p_from:u.searchParams.get('from')||null,p_to:u.searchParams.get('to')||null,p_employee_id:u.searchParams.get('employee_id')||null});
+    if (p === '/api/leaves' && method === 'POST') return await rpc('create_leave_request',{p_payload:body});
+    const leaveMatch=p.match(/^\/api\/leaves\/([^/]+)$/);if(leaveMatch&&method==='PATCH')return await rpc('update_leave_status',{p_leave_id:leaveMatch[1],p_status:body.status,p_notes:body.notes||''});
+    if (p === '/api/payroll/my-payslips' && method === 'GET') return await rpc('get_my_payslips');
+    if (p === '/api/payroll/runs' && method === 'GET') return await rpc('get_payroll_runs',{p_month:u.searchParams.get('month')||null});
+    if (p === '/api/payroll/runs' && method === 'POST') return await rpc('create_payroll_run',{p_month:body.month,p_branch:body.branch||null,p_department:body.department||null});
+    const runMatch=p.match(/^\/api\/payroll\/runs\/([^/]+)$/);if(runMatch&&method==='GET')return await rpc('get_payroll_run_details',{p_run_id:runMatch[1]});
+    const calcMatch=p.match(/^\/api\/payroll\/runs\/([^/]+)\/calculate$/);if(calcMatch&&method==='POST')return await rpc('calculate_payroll_run',{p_run_id:calcMatch[1]});
+    const statusRunMatch=p.match(/^\/api\/payroll\/runs\/([^/]+)\/status$/);if(statusRunMatch&&method==='POST')return await rpc('update_payroll_run_status',{p_run_id:statusRunMatch[1],p_status:body.status,p_notes:body.notes||''});
+    const payItemMatch=p.match(/^\/api\/payroll\/items\/([^/]+)\/pay$/);if(payItemMatch&&method==='POST')return await rpc('pay_payroll_item',{p_item_id:payItemMatch[1],p_amount:Number(body.amount),p_method:body.method,p_reference:body.reference||null});
+    if (p === '/api/compensation' && method === 'GET') return await rpc('get_employee_compensation',{p_month:u.searchParams.get('month')||null,p_employee_id:u.searchParams.get('employee_id')||null});
+    if (p === '/api/compensation' && method === 'POST') return await rpc('create_employee_compensation',{p_type:body.type,p_payload:body.payload});
+    const compMatch=p.match(/^\/api\/compensation\/([^/]+)\/([^/]+)\/approve$/);if(compMatch&&method==='POST')return await rpc('approve_employee_compensation',{p_type:compMatch[1],p_id:compMatch[2],p_status:body.status,p_reason:body.reason||''});
+    if (p === '/api/filter-presets' && method === 'GET') return await rpc('get_filter_presets',{p_page_key:u.searchParams.get('page_key')||''});
+    if (p === '/api/filter-presets' && method === 'POST') return await rpc('save_filter_preset',{p_page_key:body.page_key,p_name:body.name,p_filters:body.filters||{},p_is_default:!!body.is_default,p_is_shared:!!body.is_shared});
 
     // جودة البيانات ومسارات الحالات
     if (p === '/api/workflows/transitions' && method === 'GET') return await rpc('get_allowed_status_transitions',{p_entity_type:u.searchParams.get('entity'),p_current_status:u.searchParams.get('status')});
