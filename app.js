@@ -323,7 +323,195 @@ async function renderProducts(options={}){
   renderProductRows(items);const input=$('#productSearch');input.oninput=debounce(e=>renderProducts({page:1,search:e.target.value.trim()}),400);input.focus();input.setSelectionRange(input.value.length,input.value.length);$('#addProduct').onclick=()=>productForm();$('#addCategory').onclick=categoryForm();bindPager('products',renderProducts,search);
 }
 function renderProductRows(items){$('#productRows').innerHTML=items.map(p=>`<tr><td><div style="display:flex;align-items:center;gap:10px"><img class="thumb" src="${escapeHtml(p.image_url||'assets/logo.png')}"><div><b>${escapeHtml(p.name_ar)}</b><small>${escapeHtml(p.unit||'قطعة')}</small></div></div></td><td>${escapeHtml(p.sku)}</td><td>${escapeHtml(p.category_name||'—')}</td><td>${money(p.sale_price)}</td><td>${number(p.available_qty)}</td><td>${number(p.min_stock)}</td><td>${p.is_active?statusBadge('completed'):statusBadge('cancelled')}</td><td>${recordActionButtons('product',p,{edit:true,extra:`<button class="mini-btn" data-stock-product="${p.id}">مخزون</button>`})}</td></tr>`).join('');$$('[data-record-edit="product"]').forEach(b=>b.onclick=()=>productForm(state.cache.products.find(x=>x.id===b.dataset.id)));$$('[data-stock-product]').forEach(b=>b.onclick=()=>inventoryAdjustForm(b.dataset.stockProduct));bindRecordActions();}
-function productForm(p=null){if(!guard(p?'products.edit':'products.create'))return;const financialView=can('products.view_financial'),financialEdit=can('products.edit_financial');const cats=state.cache.categories||[];openForm(p?'تعديل المنتج':'إضافة منتج',`<form class="form-grid" id="productFinanceForm"><label>اسم المنتج<input name="name_ar" value="${escapeHtml(p?.name_ar||'')}" required></label><label>كود الصنف<input name="sku" value="${escapeHtml(p?.sku||'')}" required></label><label>الباركود<input name="barcode" value="${escapeHtml(p?.barcode||'')}"></label><label>التصنيف<select name="category_id"><option value="">بدون تصنيف</option>${cats.map(c=>`<option value="${c.id}" ${p?.category_id===c.id?'selected':''}>${escapeHtml(c.name_ar)}</option>`).join('')}</select></label><label>طريقة إدخال سعر البيع<select name="price_input_mode"><option value="exclusive">غير شامل الضريبة</option><option value="inclusive">شامل الضريبة</option><option value="exempt">معفى من الضريبة</option></select></label><label>سعر الشراء<input type="number" step="0.01" name="purchase_price" value="${financialView?(p?.purchase_price||0):''}" ${financialEdit?'':'disabled'}></label><label>متوسط التكلفة<input type="number" step="0.01" name="average_cost" value="${financialView?(p?.average_cost||0):''}" ${financialEdit?'':'disabled'}></label><label>سعر البيع<input type="number" step="0.01" name="sale_price" value="${p?.sale_price||0}" ${financialEdit?'required':'disabled'}></label><label>الحد الأدنى للربح<input type="number" step="0.01" name="min_profit" value="${financialView?(p?.min_profit||0):''}" ${financialEdit?'':'disabled'}></label>${p?'':`<label>الرصيد الافتتاحي<input type="number" step="0.01" name="stock_qty" value="0"></label>`}<label>حد إعادة الطلب<input type="number" step="0.01" name="min_stock" value="${p?.min_stock||0}"></label><label>الوحدة<input name="unit" value="${escapeHtml(p?.unit||'قطعة')}"></label><label>رابط الصورة<input name="image_url" value="${escapeHtml(p?.image_url||'')}"></label><label class="span-2">الوصف<textarea name="description">${escapeHtml(p?.description||'')}</textarea></label><div class="span-2">${financialSummaryMarkup('productFinancialSummary')}</div><label><input type="checkbox" name="is_featured" ${p?.is_featured?'checked':''}> منتج مميز</label><label><input type="checkbox" name="is_active" ${p?.is_active!==0?'checked':''}> نشط</label><button class="btn btn-primary span-2" type="submit">حفظ المنتج</button></form>`,async b=>{['purchase_price','average_cost','sale_price','min_profit','stock_qty','min_stock'].forEach(k=>{if(b[k]!==undefined)b[k]=Number(b[k])||0;});await api(p?`/api/products/${p.id}`:'/api/products',{method:p?'PUT':'POST',body:b});toast('تم حفظ المنتج');await renderProducts();});setTimeout(()=>{const f=$('#productFinanceForm'),summary=$('#productFinancialSummary');const calc=()=>{const r=window.WardatFinancial.document({lines:[{qty:1,unitPrice:f.sale_price.value,cost:f.average_cost.value,priceMode:f.price_input_mode.value}]});window.WardatFinancial.paint(summary,r,financialView);};f?.addEventListener('input',calc);f?.addEventListener('change',calc);calc();},0);}
+function productForm(p=null){
+  if(!guard(p?'products.edit':'products.create'))return;
+  const financialView=can('products.view_financial'),financialEdit=can('products.edit_financial');
+  const canManageImages=can('products.manage_images')||can('products.create')||can('products.edit');
+  const cats=state.cache.categories||[];
+  let pendingFiles=[],existingImages=[],removedImageIds=[],primarySelection=null;
+
+  openForm(p?'تعديل المنتج':'إضافة منتج',`<form class="form-grid" id="productFinanceForm">
+    <label>اسم المنتج<input name="name_ar" value="${escapeHtml(p?.name_ar||'')}" required></label>
+    <label>كود الصنف<input name="sku" value="${escapeHtml(p?.sku||'')}" required></label>
+    <label>الباركود<input name="barcode" value="${escapeHtml(p?.barcode||'')}"></label>
+    <label>التصنيف<select name="category_id"><option value="">بدون تصنيف</option>${cats.map(c=>`<option value="${c.id}" ${p?.category_id===c.id?'selected':''}>${escapeHtml(c.name_ar)}</option>`).join('')}</select></label>
+    <label>طريقة إدخال سعر البيع<select name="price_input_mode"><option value="exclusive">غير شامل الضريبة</option><option value="inclusive">شامل الضريبة</option><option value="exempt">معفى من الضريبة</option></select></label>
+    <label>سعر الشراء<input type="number" step="0.01" name="purchase_price" value="${financialView?(p?.purchase_price||0):''}" ${financialEdit?'':'disabled'}></label>
+    <label>متوسط التكلفة<input type="number" step="0.01" name="average_cost" value="${financialView?(p?.average_cost||0):''}" ${financialEdit?'':'disabled'}></label>
+    <label>سعر البيع<input type="number" step="0.01" name="sale_price" value="${p?.sale_price||0}" ${financialEdit?'required':'disabled'}></label>
+    <label>الحد الأدنى للربح<input type="number" step="0.01" name="min_profit" value="${financialView?(p?.min_profit||0):''}" ${financialEdit?'':'disabled'}></label>
+    ${p?'':`<label>الرصيد الافتتاحي<input type="number" step="0.01" name="stock_qty" value="0"></label>`}
+    <label>حد إعادة الطلب<input type="number" step="0.01" name="min_stock" value="${p?.min_stock||0}"></label>
+    <label>الوحدة<input name="unit" value="${escapeHtml(p?.unit||'قطعة')}"></label>
+    <label>المستودع<input value="المستودع الرئيسي — يحدد تلقائيًا" disabled></label>
+    <label>رابط صورة خارجي اختياري<input name="image_url" value="${escapeHtml(p?.image_url||'')}" placeholder="يستخدم فقط عند عدم رفع صورة"></label>
+
+    <section class="span-2 product-images-section">
+      <div class="panel-head">
+        <div>
+          <h3>صور المنتج</h3>
+          <small>يمكن إضافة حتى 8 صور وتحديد صورة رئيسية</small>
+        </div>
+        <span class="kpi-pill" id="productImageCount">0 / 8</span>
+      </div>
+      ${canManageImages?`
+      <label class="product-image-dropzone" id="productImageDropzone">
+        <input type="file" id="productImageFiles" accept="image/jpeg,image/png,image/webp" multiple hidden>
+        <span class="upload-icon">🖼️</span>
+        <b>اضغط لاختيار الصور أو اسحبها إلى هنا</b>
+        <small>JPG أو PNG أو WebP — بحد أقصى 5MB للصورة</small>
+      </label>`:`<div class="demo-note">ليست لديك صلاحية لإضافة أو حذف صور المنتجات.</div>`}
+      <div class="product-image-gallery" id="productImageGallery">
+        <div class="empty">لا توجد صور مضافة</div>
+      </div>
+      <div class="upload-progress" id="productImageProgress" hidden>
+        <div><span id="productImageProgressText">جاري رفع الصور...</span><b id="productImageProgressValue">0%</b></div>
+        <progress id="productImageProgressBar" max="100" value="0"></progress>
+      </div>
+    </section>
+
+    <label class="span-2">الوصف<textarea name="description">${escapeHtml(p?.description||'')}</textarea></label>
+    <div class="span-2">${financialSummaryMarkup('productFinancialSummary')}</div>
+    <label><input type="checkbox" name="is_featured" ${p?.is_featured?'checked':''}> منتج مميز</label>
+    <label><input type="checkbox" name="is_active" ${p?.is_active!==0?'checked':''}> نشط</label>
+    <button class="btn btn-primary span-2" type="submit">حفظ المنتج والصور</button>
+  </form>`,async (b,form)=>{
+    ['purchase_price','average_cost','sale_price','min_profit','stock_qty','min_stock'].forEach(k=>{if(b[k]!==undefined)b[k]=Number(b[k])||0;});
+    const saved=await api(p?`/api/products/${p.id}`:'/api/products',{method:p?'PUT':'POST',body:b});
+    const productId=saved?.item?.id||p?.id;
+    if(!productId)throw new Error('تم حفظ المنتج لكن تعذر تحديد معرفه لرفع الصور');
+
+    const progress=$('#productImageProgress',form),bar=$('#productImageProgressBar',form),text=$('#productImageProgressText',form),value=$('#productImageProgressValue',form);
+    const totalActions=removedImageIds.length+pendingFiles.length+(primarySelection?.type==='existing'?1:0);
+    let completed=0;
+    const updateProgress=label=>{
+      if(!totalActions)return;
+      progress.hidden=false;completed++;
+      const percent=Math.round(completed/totalActions*100);
+      bar.value=percent;value.textContent=`${percent}%`;text.textContent=label;
+    };
+
+    for(const imageId of removedImageIds){
+      await window.WardatBackend.deleteProductImage(imageId);
+      updateProgress('تم حذف صورة قديمة');
+    }
+
+    const uploaded=[];
+    for(let i=0;i<pendingFiles.length;i++){
+      const file=pendingFiles[i];
+      const isPrimary=primarySelection?.type==='new'&&primarySelection.index===i;
+      const result=await window.WardatBackend.uploadProductImage(productId,file,{isPrimary,altText:`${b.name_ar} - ${i+1}`});
+      uploaded.push(result?.item);
+      updateProgress(`تم رفع الصورة ${i+1} من ${pendingFiles.length}`);
+    }
+
+    if(primarySelection?.type==='existing'&&!removedImageIds.includes(primarySelection.id)){
+      await window.WardatBackend.setPrimaryProductImage(primarySelection.id);
+      updateProgress('تم تحديد الصورة الرئيسية');
+    }else if(!primarySelection&&uploaded.length&&!existingImages.some(x=>x.is_primary&&!removedImageIds.includes(x.id))){
+      await window.WardatBackend.setPrimaryProductImage(uploaded[0].id);
+    }
+
+    toast('تم حفظ المنتج وصوره');
+    await renderProducts();
+  });
+
+  setTimeout(async()=>{
+    const form=$('#productFinanceForm'),summary=$('#productFinancialSummary');
+    const dropzone=$('#productImageDropzone',form),input=$('#productImageFiles',form),gallery=$('#productImageGallery',form),counter=$('#productImageCount',form);
+
+    const calc=()=>{
+      const r=window.WardatFinancial.document({lines:[{qty:1,unitPrice:form.sale_price.value,cost:form.average_cost.value,priceMode:form.price_input_mode.value}]});
+      window.WardatFinancial.paint(summary,r,financialView);
+    };
+    form?.addEventListener('input',calc);form?.addEventListener('change',calc);calc();
+
+    const activeExisting=()=>existingImages.filter(x=>!removedImageIds.includes(x.id));
+    const totalCount=()=>activeExisting().length+pendingFiles.length;
+
+    const validateFiles=files=>{
+      const valid=[];
+      for(const file of files){
+        if(!['image/jpeg','image/png','image/webp'].includes(file.type)){toast(`تم تجاهل ${file.name}: الصيغة غير مدعومة`,'error');continue;}
+        if(file.size>5*1024*1024){toast(`تم تجاهل ${file.name}: أكبر من 5MB`,'error');continue;}
+        valid.push(file);
+      }
+      const available=Math.max(0,8-totalCount());
+      if(valid.length>available)toast(`يمكن إضافة ${available} صورة فقط للوصول إلى الحد الأقصى 8`,'error');
+      return valid.slice(0,available);
+    };
+
+    const renderGallery=()=>{
+      const existing=activeExisting();
+      const cards=[
+        ...existing.map(img=>`<article class="product-image-preview ${primarySelection?.type==='existing'&&primarySelection.id===img.id||(!primarySelection&&img.is_primary)?'primary':''}">
+          <img src="${escapeHtml(img.url)}" alt="${escapeHtml(img.alt_text||p?.name_ar||'صورة المنتج')}">
+          <div class="image-preview-actions">
+            <button type="button" class="mini-btn" data-image-primary-existing="${img.id}" title="تعيين كرئيسية">⭐ رئيسية</button>
+            <button type="button" class="mini-btn danger-lite" data-image-remove-existing="${img.id}">🗑 حذف</button>
+          </div>
+          ${(primarySelection?.type==='existing'&&primarySelection.id===img.id)||(!primarySelection&&img.is_primary)?'<span class="primary-image-badge">الصورة الرئيسية</span>':''}
+        </article>`),
+        ...pendingFiles.map((file,index)=>`<article class="product-image-preview ${primarySelection?.type==='new'&&primarySelection.index===index?'primary':''}">
+          <img src="${URL.createObjectURL(file)}" alt="${escapeHtml(file.name)}">
+          <div class="image-preview-actions">
+            <button type="button" class="mini-btn" data-image-primary-new="${index}">⭐ رئيسية</button>
+            <button type="button" class="mini-btn danger-lite" data-image-remove-new="${index}">🗑 حذف</button>
+          </div>
+          ${primarySelection?.type==='new'&&primarySelection.index===index?'<span class="primary-image-badge">الصورة الرئيسية</span>':''}
+          <small>${escapeHtml(file.name)} · ${(file.size/1024/1024).toFixed(2)}MB</small>
+        </article>`)
+      ];
+      gallery.innerHTML=cards.length?cards.join(''):'<div class="empty">لا توجد صور مضافة</div>';
+      counter.textContent=`${totalCount()} / 8`;
+
+      $$('[data-image-primary-existing]',gallery).forEach(btn=>btn.onclick=()=>{primarySelection={type:'existing',id:btn.dataset.imagePrimaryExisting};renderGallery();});
+      $$('[data-image-primary-new]',gallery).forEach(btn=>btn.onclick=()=>{primarySelection={type:'new',index:Number(btn.dataset.imagePrimaryNew)};renderGallery();});
+      $$('[data-image-remove-existing]',gallery).forEach(btn=>btn.onclick=()=>{
+        const id=btn.dataset.imageRemoveExisting;
+        removedImageIds.push(id);
+        if(primarySelection?.type==='existing'&&primarySelection.id===id)primarySelection=null;
+        renderGallery();
+      });
+      $$('[data-image-remove-new]',gallery).forEach(btn=>btn.onclick=()=>{
+        const index=Number(btn.dataset.imageRemoveNew);
+        pendingFiles.splice(index,1);
+        if(primarySelection?.type==='new'){
+          if(primarySelection.index===index)primarySelection=null;
+          else if(primarySelection.index>index)primarySelection.index--;
+        }
+        renderGallery();
+      });
+    };
+
+    const addFiles=files=>{
+      const accepted=validateFiles(Array.from(files||[]));
+      if(!accepted.length)return;
+      const start=pendingFiles.length;
+      pendingFiles.push(...accepted);
+      if(!primarySelection&&!activeExisting().some(x=>x.is_primary)&&pendingFiles.length)primarySelection={type:'new',index:start};
+      renderGallery();
+    };
+
+    if(dropzone&&input){
+      dropzone.addEventListener('click',e=>{if(e.target!==input)input.click();});
+      input.addEventListener('change',()=>{addFiles(input.files);input.value='';});
+      ['dragenter','dragover'].forEach(event=>dropzone.addEventListener(event,e=>{e.preventDefault();dropzone.classList.add('dragging');}));
+      ['dragleave','drop'].forEach(event=>dropzone.addEventListener(event,e=>{e.preventDefault();dropzone.classList.remove('dragging');}));
+      dropzone.addEventListener('drop',e=>addFiles(e.dataTransfer.files));
+    }
+
+    if(p?.id){
+      try{
+        const result=await api(`/api/products/${p.id}/images`);
+        existingImages=result.items||[];
+        const currentPrimary=existingImages.find(x=>x.is_primary);
+        if(currentPrimary)primarySelection={type:'existing',id:currentPrimary.id};
+      }catch(error){toast(`تعذر تحميل صور المنتج: ${error.message}`,'error');}
+    }
+    renderGallery();
+  },0);
+}
 function categoryForm(){if(!guard('categories.create'))return;openForm('إضافة تصنيف',`<form class="form-grid single"><label>اسم التصنيف<input name="name_ar" required></label><label>الاسم الإنجليزي<input name="name_en"></label><label>الرابط المختصر<input name="slug"></label><button class="btn btn-primary" type="submit">حفظ التصنيف</button></form>`,async b=>{await api('/api/categories',{method:'POST',body:b});toast('تم حفظ التصنيف');await renderProducts();});}
 
 async function renderInventory(){const d=await api('/api/inventory');state.cache.inventory=d.items;const mayMove=window.PermissionsService.canAny(['inventory.adjust','inventory.issue','inventory.receive']);const inventoryValue=can('inventory.view_financial')?money(d.items.reduce((s,x)=>s+Number(x.current_qty)*Number(x.average_cost),0)):'—';$('#content').innerHTML=`<div class="toolbar"><input class="search" id="inventorySearch" placeholder="ابحث في المخزون">${mayMove?'<button class="btn btn-primary" id="inventoryAdjust">تسجيل حركة</button>':''}</div><div class="metrics">${metricHtml('إجمالي الأصناف',d.items.length)}${metricHtml('منخفضة الكمية',d.items.filter(x=>Number(x.available_qty)<=Number(x.min_qty)).length)}${metricHtml('القيمة التقريبية',inventoryValue)}${metricHtml('الكميات المحجوزة',number(d.items.reduce((s,x)=>s+Number(x.reserved_qty),0)))}</div><div class="grid-2"><section class="panel"><div class="panel-head"><h3>الأرصدة الحالية</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>الصنف</th><th>الحالي</th><th>المحجوز</th><th>المتاح</th><th>التالف</th><th>الموقع</th><th>تنبيه</th></tr></thead><tbody id="inventoryRows">${inventoryRows(d.items)}</tbody></table></div></section><section class="panel"><div class="panel-head"><h3>آخر الحركات</h3></div><div class="list">${d.movements.slice(0,18).map(m=>`<div class="list-item"><div><b>${escapeHtml(m.product_name||'صنف')}</b><small>${escapeHtml(m.movement_type)} · ${dt(m.created_at)}</small></div><strong style="color:${Number(m.qty)>=0?'var(--green)':'var(--red)'}">${Number(m.qty)>=0?'+':''}${number(m.qty)}</strong></div>`).join('')}</div></section></div>`;if($('#inventoryAdjust'))$('#inventoryAdjust').onclick=()=>inventoryAdjustForm();$('#inventorySearch').oninput=e=>{$('#inventoryRows').innerHTML=inventoryRows(d.items.filter(x=>`${x.name_ar} ${x.sku}`.toLowerCase().includes(e.target.value.toLowerCase())));};}

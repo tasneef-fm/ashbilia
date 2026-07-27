@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.07.27-v10-auto-finance-print-actions",
+  "version": "2026.07.27-v12-warehouse-fix",
   "generated": "2026-07-21",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 113,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-07-27T12:00:00+03:00",
+  "updated_at": "2026-07-27T14:15:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -44,5 +44,13 @@
   "automatic_financial_engine": true,
   "unified_record_actions": true,
   "unified_print_engine": true,
-  "soft_delete": true
+  "soft_delete": true,
+  "product_image_upload": true,
+  "product_image_gallery": true,
+  "product_image_storage_bucket": "product-images",
+  "product_image_limit": 8,
+  "product_image_max_size_mb": 5,
+  "warehouse_self_heal": true,
+  "default_warehouse_code": "MAIN",
+  "product_inventory_autolink": true
 }

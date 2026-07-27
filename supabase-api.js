@@ -49,6 +49,7 @@ window.WardatBackend = (() => {
     if (/JWT|session|not authenticated|يلزم تسجيل الدخول/i.test(m)) return 'يلزم تسجيل الدخول';
     if (/duplicate key|unique constraint/i.test(m)) return 'السجل موجود مسبقًا أو الرقم مستخدم';
     if (/invalid input syntax for type numeric/i.test(m)) return 'توجد قيمة رقمية غير صحيحة أو حقل رقمي فارغ';
+    if (/warehouse_id.*not-null|null value in column.*warehouse_id/i.test(m)) return 'تعذر تحديد المستودع الرئيسي. شغّل ملف إصلاح المستودع V12 ثم أعد المحاولة';
     if (/row-level security|permission denied/i.test(m)) return 'ليست لديك صلاحية لتنفيذ هذه العملية';
     return m.replace(/^Error:\s*/i, '') || 'تعذر تنفيذ العملية';
   }
@@ -93,6 +94,68 @@ window.WardatBackend = (() => {
   function pageArgs(u,defaultSize=40){const page=Math.max(1,Number(u.searchParams.get('page')||1)),pageSize=Math.max(10,Math.min(100,Number(u.searchParams.get('page_size')||defaultSize))),from=(page-1)*pageSize;return{page,pageSize,from,to:from+pageSize-1};}
   function safeSearch(value=''){return String(value).trim().replace(/[,()%*]/g,' ').slice(0,100);}
   function pagedResult(data,count,page,pageSize){return{items:data||[],total:Number(count||0),page,page_size:pageSize,pages:Math.max(1,Math.ceil(Number(count||0)/pageSize))};}
+
+
+  function validateProductImageFile(file) {
+    const allowed = ['image/jpeg','image/png','image/webp'];
+    if (!(file instanceof File)) throw new Error('ملف الصورة غير صالح');
+    if (!allowed.includes(file.type)) throw new Error('الصيغ المسموحة: JPG وPNG وWebP فقط');
+    if (file.size > 5 * 1024 * 1024) throw new Error('حجم الصورة يجب ألا يتجاوز 5MB');
+  }
+  function safeImageExtension(file) {
+    const map = {'image/jpeg':'jpg','image/png':'png','image/webp':'webp'};
+    return map[file.type] || 'jpg';
+  }
+  async function uploadProductImage(productId, file, options = {}) {
+    requireLocal(['products.manage_images','products.create','products.edit']);
+    validateProductImageFile(file);
+    const c = ensureClient();
+    const extension = safeImageExtension(file);
+    const path = `${productId}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+    const uploadResult = await c.storage.from('product-images').upload(path, file, {
+      cacheControl: '31536000',
+      contentType: file.type,
+      upsert: false
+    });
+    unwrap(uploadResult, 'تعذر رفع صورة المنتج');
+    const publicUrl = c.storage.from('product-images').getPublicUrl(path)?.data?.publicUrl;
+    if (!publicUrl) {
+      await c.storage.from('product-images').remove([path]).catch(()=>{});
+      throw new Error('تعذر إنشاء رابط عام للصورة');
+    }
+    try {
+      return await rpc('register_product_image', {
+        p_product_id: productId,
+        p_url: publicUrl,
+        p_storage_path: path,
+        p_alt_text: options.altText || file.name || '',
+        p_is_primary: Boolean(options.isPrimary)
+      });
+    } catch (error) {
+      await c.storage.from('product-images').remove([path]).catch(()=>{});
+      throw error;
+    }
+  }
+  async function deleteProductImage(imageId) {
+    requireLocal(['products.manage_images','products.edit']);
+    const result = await rpc('remove_product_image', { p_image_id: imageId });
+    if (result?.storage_path) {
+      const removeResult = await ensureClient().storage.from('product-images').remove([result.storage_path]);
+      if (removeResult?.error) console.warn('تعذر حذف الملف من Storage:', removeResult.error.message);
+    }
+    return result;
+  }
+  async function setPrimaryProductImage(imageId) {
+    requireLocal(['products.manage_images','products.edit']);
+    return await rpc('set_primary_product_image', { p_image_id: imageId });
+  }
+  async function reorderProductImages(productId, imageIds) {
+    requireLocal(['products.manage_images','products.edit']);
+    return await rpc('reorder_product_images', {
+      p_product_id: productId,
+      p_image_ids: imageIds
+    });
+  }
 
   async function request(rawUrl, options = {}) {
     ensureClient();
@@ -157,6 +220,7 @@ window.WardatBackend = (() => {
       const routeRules = [
         [/^\/api\/dashboard$/, 'dashboard.view'],
         [/^\/api\/categories$/, method==='GET'?'categories.view':'categories.create'],
+        [/^\/api\/products\/[^/]+\/images(?:\/[^/]+)?$/, method==='GET'?'products.view':'products.manage_images'],
         [/^\/api\/products(?:\/[^/]+)?$/, method==='GET'?'products.view':method==='POST'?'products.create':'products.edit'],
         [/^\/api\/inventory$/, 'inventory.view'], [/^\/api\/inventory\/adjust$/, ['inventory.adjust','inventory.issue','inventory.receive']],
         [/^\/api\/customers$/, method==='GET'?'customers.view':'customers.create'],
@@ -193,6 +257,23 @@ window.WardatBackend = (() => {
       const result=await q;const data=unwrap(result);return {...pagedResult(flattenProducts(data),result.count,page,pageSize)};
     }
     if (p === '/api/products' && method === 'POST') return await rpc('upsert_product', { p_id: null, p_payload: body });
+    const productImagesMatch = p.match(/^\/api\/products\/([^/]+)\/images$/);
+    if (productImagesMatch && method === 'GET') {
+      return { items: await rpc('list_product_images', { p_product_id: productImagesMatch[1] }) };
+    }
+    const productPrimaryImageMatch = p.match(/^\/api\/products\/[^/]+\/images\/([^/]+)\/primary$/);
+    if (productPrimaryImageMatch && method === 'POST') {
+      return await setPrimaryProductImage(productPrimaryImageMatch[1]);
+    }
+    const productImageDeleteMatch = p.match(/^\/api\/products\/[^/]+\/images\/([^/]+)$/);
+    if (productImageDeleteMatch && method === 'DELETE') {
+      return await deleteProductImage(productImageDeleteMatch[1]);
+    }
+    if (productImagesMatch && method === 'PATCH') {
+      return await reorderProductImages(productImagesMatch[1], body.image_ids || []);
+    }
+
+
     const productMatch = p.match(/^\/api\/products\/([^/]+)$/);
     if (productMatch && method === 'PUT') return await rpc('upsert_product', { p_id: productMatch[1], p_payload: body });
 
@@ -389,5 +470,14 @@ window.WardatBackend = (() => {
   }
 
   async function logClientError(message,context,stack){if(!client||!currentAccess)return;try{await request('/api/system/client-error',{method:'POST',body:{message,context,stack},skipPermissionCheck:true});}catch{}}
-  return { request, logClientError, isConfigured: () => configured, client: () => client };
+  return {
+    request,
+    logClientError,
+    uploadProductImage,
+    deleteProductImage,
+    setPrimaryProductImage,
+    reorderProductImages,
+    isConfigured: () => configured,
+    client: () => client
+  };
 })();
