@@ -84,10 +84,27 @@ window.WardatBackend = (() => {
     const c = ensureClient();
     return unwrap(await configure(c.from(table).select(select)));
   }
+  function productImagePath(value='', storagePath='') {
+    let raw=String(storagePath||value||'').trim();
+    if(!raw)return'';
+    const marker='/storage/v1/object/public/product-images/';
+    if(raw.includes(marker))raw=raw.split(marker)[1].split('?')[0];
+    if(/^https?:\/\//i.test(raw))return'';
+    return decodeURIComponent(raw).replace(/^product-images\//,'').replace(/^\/+/, '');
+  }
+  function productImageUrl(value='',storagePath=''){
+    const raw=String(value||'').trim(),path=productImagePath(value,storagePath);
+    if(path){
+      try{return ensureClient().storage.from('product-images').getPublicUrl(path)?.data?.publicUrl||raw;}
+      catch{return raw;}
+    }
+    return raw;
+  }
   function flattenProducts(items = []) {
     return items.map(p => ({
       ...p,
       category_name: p.category_name || p.product_categories?.name_ar || null,
+      image_url: productImageUrl(p.image_record_url||p.image_url,p.image_storage_path),
       available_qty: Number(p.available_qty ?? (Number(p.stock_qty || 0) - Number(p.reserved_qty || 0)))
     }));
   }
@@ -259,7 +276,7 @@ window.WardatBackend = (() => {
     if (p === '/api/products' && method === 'POST') return await rpc('upsert_product', { p_id: null, p_payload: body });
     const productImagesMatch = p.match(/^\/api\/products\/([^/]+)\/images$/);
     if (productImagesMatch && method === 'GET') {
-      return { items: await rpc('list_product_images', { p_product_id: productImagesMatch[1] }) };
+      const imageItems=await rpc('list_product_images',{p_product_id:productImagesMatch[1]});return {items:(imageItems||[]).map(i=>({...i,url:productImageUrl(i.url,i.storage_path)}))};
     }
     const productPrimaryImageMatch = p.match(/^\/api\/products\/[^/]+\/images\/([^/]+)\/primary$/);
     if (productPrimaryImageMatch && method === 'POST') {
@@ -279,11 +296,12 @@ window.WardatBackend = (() => {
 
     // المخزون
     if (p === '/api/inventory' && method === 'GET') {
-      const [items, movements] = await Promise.all([
-        rows('v_inventory', '*', q => q.order('name_ar')),
-        rows('v_inventory_movements', '*', q => q.order('created_at', { ascending: false }).limit(100))
+      const [items,movements,summary]=await Promise.all([
+        rows('v_inventory','*',q=>q.order('name_ar')),
+        rows('v_inventory_movements','*',q=>q.order('created_at',{ascending:false}).limit(100)),
+        rpc('get_inventory_summary')
       ]);
-      return { items, movements };
+      return {items,movements,summary};
     }
     if (p === '/api/inventory/adjust' && method === 'POST') return await rpc('adjust_inventory', { p_payload: body });
 
@@ -477,6 +495,7 @@ window.WardatBackend = (() => {
     deleteProductImage,
     setPrimaryProductImage,
     reorderProductImages,
+    productImageUrl,
     isConfigured: () => configured,
     client: () => client
   };
