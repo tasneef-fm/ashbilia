@@ -181,7 +181,7 @@ function bindGlobal(){
   window.addEventListener('error',e=>{if(state.user)window.WardatBackend?.logClientError?.(e.message,location.pathname,e.error?.stack);});
   window.addEventListener('unhandledrejection',e=>{if(state.user)window.WardatBackend?.logClientError?.(e.reason?.message||String(e.reason),location.pathname,e.reason?.stack);});
   document.addEventListener('click',e=>{
-    const close=e.target.closest('[data-close]');if(close)hide(close.dataset.close);
+    const close=e.target.closest('[data-close]');if(close){hide(close.dataset.close);if(close.dataset.close==='formModal')cleanupStoreProductPreview();}
     const scroll=e.target.closest('[data-scroll]');if(scroll)$('#'+scroll.dataset.scroll)?.scrollIntoView({behavior:'smooth'});
   });
 
@@ -220,14 +220,91 @@ function renderStoreProducts(){
   $$('[data-view-product]','#storeProducts').forEach(b=>b.onclick=()=>showStoreProductPreview(b.dataset.viewProduct));
 }
 
+function cleanupStoreProductPreview(){
+  const modal=$('#formModal');
+  modal?.classList.remove('product-showcase-modal','preview-zoomed');
+  document.body.classList.remove('store-modal-open');
+}
 function showStoreProductPreview(productId){
   const product=state.publicData.products.find(p=>String(p.id)===String(productId));
   if(!product)return toast('تعذر العثور على المنتج','error');
   const modal=$('#formModal'),content=$('#formModalContent');
   if(!modal||!content)return;
-  content.innerHTML=`<div class="store-product-preview"><div class="store-product-preview-image"><img ${productImageAttrs(product.image_url,product.image_storage_path,product.name_ar)}></div><div class="store-product-preview-details"><span class="eyebrow">${escapeHtml(product.category_name||'وردة أشبيليا')}</span><h2>${escapeHtml(product.name_ar)}</h2><div class="store-product-preview-meta"><span>كود المنتج: ${escapeHtml(product.sku||'—')}</span></div><p>${escapeHtml(product.description||'تنسيق فاخر حسب الطلب')}</p><div class="store-product-preview-price">${money(product.sale_price)} ${product.compare_price?`<del>${money(product.compare_price)}</del>`:''}</div><div class="store-product-preview-actions"><button class="btn btn-primary" type="button" id="storePreviewAdd">إضافة إلى السلة</button><button class="btn btn-outline" type="button" data-close="formModal">إغلاق</button></div></div></div>`;
+
+  const available=Math.max(0,Number(product.available_qty??(Number(product.stock_qty||0)-Number(product.reserved_qty||0))));
+  const isAvailable=available>0;
+  const description=product.description||'منتج مختار بعناية من وردة أشبيليا، مناسب للتنسيقات والهدايا والمناسبات.';
+  const category=product.category_name||'فازات';
+  const supplier=product.supplier_name||'جرد أشبيليا';
+  const imageUrl=productImageUrl(product.image_url,product.image_storage_path);
+
+  cleanupStoreProductPreview();
+  modal.classList.add('product-showcase-modal');
+  document.body.classList.add('store-modal-open');
+
+  content.innerHTML=`<article class="professional-product-view" aria-labelledby="previewProductTitle">
+    <section class="professional-product-gallery">
+      <div class="preview-gallery-decoration" aria-hidden="true"></div>
+      <img class="preview-brand-mark" src="assets/logo.png" alt="">
+      <button class="preview-circle-btn preview-close-btn" type="button" data-close="formModal" aria-label="إغلاق">×</button>
+      <button class="preview-circle-btn preview-zoom-btn" type="button" id="storePreviewZoom" aria-label="تكبير الصورة">⌕</button>
+      <div class="preview-main-image-wrap">
+        <img class="preview-main-image" src="${escapeHtml(imageUrl)}" alt="${escapeHtml(product.name_ar)}" onerror="this.onerror=null;this.src='assets/logo.png'">
+      </div>
+      <div class="preview-image-caption">
+        <span>صورة المنتج</span>
+        <b>${escapeHtml(product.sku||'—')}</b>
+      </div>
+    </section>
+
+    <section class="professional-product-info">
+      <div class="preview-info-topline">
+        <span class="preview-category">${escapeHtml(category)}</span>
+        <span class="preview-stock ${isAvailable?'available':'unavailable'}">${isAvailable?`متوفر ${number(available)} قطعة`:'غير متوفر حاليًا'}</span>
+      </div>
+      <h2 id="previewProductTitle">${escapeHtml(product.name_ar)}</h2>
+      <p class="preview-description">${escapeHtml(description)}</p>
+
+      <div class="preview-specs">
+        <div><span>كود المنتج</span><b>${escapeHtml(product.sku||'—')}</b></div>
+        <div><span>التصنيف</span><b>${escapeHtml(category)}</b></div>
+        <div><span>المورد</span><b>${escapeHtml(supplier)}</b></div>
+        <div><span>الوحدة</span><b>${escapeHtml(product.unit||'قطعة')}</b></div>
+      </div>
+
+      <div class="preview-price-panel">
+        <div><span>السعر</span><strong>${money(product.sale_price)}</strong>${product.compare_price?`<del>${money(product.compare_price)}</del>`:''}</div>
+        <small>السعر النهائي حسب إعدادات الضريبة في الطلب</small>
+      </div>
+
+      <div class="preview-service-points">
+        <span>✓ تغليف أنيق</span>
+        <span>✓ توصيل داخل الرياض</span>
+        <span>✓ دفع آمن</span>
+      </div>
+
+      <div class="professional-preview-actions">
+        <button class="btn btn-primary preview-cart-btn" type="button" id="storePreviewAdd" ${isAvailable?'':'disabled'}>${isAvailable?'إضافة إلى السلة':'نفدت الكمية'}</button>
+        <button class="btn btn-outline preview-share-btn" type="button" id="storePreviewShare">مشاركة المنتج</button>
+      </div>
+    </section>
+  </article>`;
+
   show('formModal');
-  $('#storePreviewAdd')?.addEventListener('click',()=>{addToCart(product.id);hide('formModal');});
+  $('#storePreviewAdd')?.addEventListener('click',()=>{
+    addToCart(product.id);
+    hide('formModal');
+    cleanupStoreProductPreview();
+  });
+  $('#storePreviewZoom')?.addEventListener('click',()=>modal.classList.toggle('preview-zoomed'));
+  $('#storePreviewShare')?.addEventListener('click',async()=>{
+    const shareData={title:product.name_ar,text:`${product.name_ar} — ${money(product.sale_price)}`,url:location.href};
+    if(navigator.share){
+      try{await navigator.share(shareData);return;}catch(error){if(error?.name==='AbortError')return;}
+    }
+    try{await navigator.clipboard.writeText(`${shareData.text}\n${shareData.url}`);toast('تم نسخ بيانات المنتج');}
+    catch{window.open(`https://wa.me/?text=${encodeURIComponent(`${shareData.text}\n${shareData.url}`)}`,'_blank');}
+  });
 }
 function addToCart(productId){const p=state.publicData.products.find(x=>x.id===productId);if(!p)return;const existing=state.cart.find(x=>x.product_id===productId);const available=Number(p.available_qty??(Number(p.stock_qty||0)-Number(p.reserved_qty||0)));if(existing){if(existing.qty>=available)return toast('لا توجد كمية إضافية متاحة','error');existing.qty++;}else{if(available<1)return toast('المنتج غير متاح حاليًا','error');state.cart.push({product_id:p.id,name:p.name_ar,price:Number(p.sale_price),qty:1,image:productImageUrl(p.image_url,p.image_storage_path)});}saveCart();toast('تمت إضافة المنتج للسلة');}
 function updateCartCount(){$('#cartCount').textContent=state.cart.reduce((s,i)=>s+i.qty,0);}

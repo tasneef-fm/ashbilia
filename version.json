@@ -1,7 +1,7 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.07.27-v17-safe-full-image-view",
+  "version": "2026.07.27-v18-professional-product-preview",
   "generated": "2026-07-21",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
@@ -79,5 +79,9 @@
     "employee.html",
     "404.html",
     "version.json"
-  ]
+  ],
+  "professional_product_preview": true,
+  "product_preview_zoom": true,
+  "product_preview_share": true,
+  "product_preview_full_image": true
 }

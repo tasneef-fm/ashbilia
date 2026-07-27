@@ -1,0 +1,23 @@
+خطوات تطبيق إصلاح الصلاحيات على نفس النسخة
+
+1) خذ نسخة احتياطية من قاعدة Supabase قبل أي تعديل.
+2) افتح Supabase > SQL Editor > New query.
+3) انسخ كامل ملف: supabase/permissions-rebuild.sql
+4) اضغط Run وانتظر ظهور Success بلا أي خطأ أحمر.
+5) افتح New query وشغّل: supabase/verify-permissions.sql
+6) تأكد من الآتي:
+   - active_permissions = 68
+   - active_permission_resource_coverage: passed = true
+   - active_super_admins أكبر من أو يساوي 1
+   - targeted_permission_function_not_exposed: passed = true
+   - old_role_functions_not_exposed: passed = true
+   - sensitive_tables_not_directly_readable: passed = true
+   - safe_views_readable: passed = true
+7) ارفع محتويات هذه النسخة إلى نفس مستودع GitHub بدل الملفات الحالية.
+8) انتظر GitHub Actions ثم حدّث التطبيق بـ Ctrl+F5.
+9) حسابات الدور القديم admin تتحول تلقائيًا إلى super_admin.
+10) افتح قسم المستخدمون والصلاحيات، واضبط كل مستخدم ثم استخدم زر فحص الصلاحيات.
+11) اختبر مستخدمًا واحدًا لكل دور من جهاز أو نافذة خاصة مختلفة.
+
+لا تشغّل seed-demo.sql مرة أخرى على قاعدة العمل.
+إذا توقف SQL عند خطأ، لا ترفع الواجهة الجديدة قبل إصلاحه؛ أرسل صورة الخطأ مع رقم السطر.
