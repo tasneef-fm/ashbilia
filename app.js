@@ -215,8 +215,19 @@ function renderStore(){
 }
 function renderStoreProducts(){
   let products=state.publicData.products.filter(p=>!state.category||p.category_id===state.category);
-  $('#storeProducts').innerHTML=products.length?products.map(p=>`<article class="product-card"><div class="product-image"><img loading="lazy" ${productImageAttrs(p.image_url,p.image_storage_path,p.name_ar)}><span class="product-badge">${escapeHtml(p.category_name||'وردة أشبيليا')}</span></div><div class="product-body"><small>${escapeHtml(p.sku)}</small><h3>${escapeHtml(p.name_ar)}</h3><p>${escapeHtml(p.description||'تنسيق فاخر حسب الطلب')}</p><div class="product-foot"><span class="price">${money(p.sale_price)} ${p.compare_price?`<del>${money(p.compare_price)}</del>`:''}</span><button class="add-btn" data-add="${p.id}" aria-label="أضف للسلة">+</button></div></div></article>`).join(''):`<div class="empty">لا توجد منتجات في هذا التصنيف.</div>`;
+  $('#storeProducts').innerHTML=products.length?products.map(p=>`<article class="product-card"><div class="product-image"><img loading="lazy" ${productImageAttrs(p.image_url,p.image_storage_path,p.name_ar)}><span class="product-badge">${escapeHtml(p.category_name||'وردة أشبيليا')}</span></div><div class="product-body"><small>${escapeHtml(p.sku)}</small><h3>${escapeHtml(p.name_ar)}</h3><p>${escapeHtml(p.description||'تنسيق فاخر حسب الطلب')}</p><div class="product-foot"><span class="price">${money(p.sale_price)} ${p.compare_price?`<del>${money(p.compare_price)}</del>`:''}</span><div class="product-actions"><button class="btn btn-outline product-view-btn" type="button" data-view-product="${p.id}">عرض</button><button class="add-btn" type="button" data-add="${p.id}" aria-label="أضف للسلة">+</button></div></div></div></article>`).join(''):`<div class="empty">لا توجد منتجات في هذا التصنيف.</div>`;
   $$('[data-add]','#storeProducts').forEach(b=>b.onclick=()=>addToCart(b.dataset.add));
+  $$('[data-view-product]','#storeProducts').forEach(b=>b.onclick=()=>showStoreProductPreview(b.dataset.viewProduct));
+}
+
+function showStoreProductPreview(productId){
+  const product=state.publicData.products.find(p=>String(p.id)===String(productId));
+  if(!product)return toast('تعذر العثور على المنتج','error');
+  const modal=$('#formModal'),content=$('#formModalContent');
+  if(!modal||!content)return;
+  content.innerHTML=`<div class="store-product-preview"><div class="store-product-preview-image"><img ${productImageAttrs(product.image_url,product.image_storage_path,product.name_ar)}></div><div class="store-product-preview-details"><span class="eyebrow">${escapeHtml(product.category_name||'وردة أشبيليا')}</span><h2>${escapeHtml(product.name_ar)}</h2><div class="store-product-preview-meta"><span>كود المنتج: ${escapeHtml(product.sku||'—')}</span></div><p>${escapeHtml(product.description||'تنسيق فاخر حسب الطلب')}</p><div class="store-product-preview-price">${money(product.sale_price)} ${product.compare_price?`<del>${money(product.compare_price)}</del>`:''}</div><div class="store-product-preview-actions"><button class="btn btn-primary" type="button" id="storePreviewAdd">إضافة إلى السلة</button><button class="btn btn-outline" type="button" data-close="formModal">إغلاق</button></div></div></div>`;
+  show('formModal');
+  $('#storePreviewAdd')?.addEventListener('click',()=>{addToCart(product.id);hide('formModal');});
 }
 function addToCart(productId){const p=state.publicData.products.find(x=>x.id===productId);if(!p)return;const existing=state.cart.find(x=>x.product_id===productId);const available=Number(p.available_qty??(Number(p.stock_qty||0)-Number(p.reserved_qty||0)));if(existing){if(existing.qty>=available)return toast('لا توجد كمية إضافية متاحة','error');existing.qty++;}else{if(available<1)return toast('المنتج غير متاح حاليًا','error');state.cart.push({product_id:p.id,name:p.name_ar,price:Number(p.sale_price),qty:1,image:productImageUrl(p.image_url,p.image_storage_path)});}saveCart();toast('تمت إضافة المنتج للسلة');}
 function updateCartCount(){$('#cartCount').textContent=state.cart.reduce((s,i)=>s+i.qty,0);}

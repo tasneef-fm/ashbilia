@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.07.27-v16-branded-inventory-print",
+  "version": "2026.07.27-v17-safe-full-image-view",
   "generated": "2026-07-21",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 113,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-07-27T21:45:00+03:00",
+  "updated_at": "2026-07-27T22:30:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -67,5 +67,17 @@
   "inventory_branded_print": true,
   "inventory_print_orientation": "landscape",
   "inventory_print_logo": true,
-  "inventory_print_current_filter": true
+  "inventory_print_current_filter": true,
+  "store_product_image_fit": "contain",
+  "store_product_view_button": true,
+  "database_changes": false,
+  "changed_files": [
+    "app.js",
+    "styles.css",
+    "index.html",
+    "admin.html",
+    "employee.html",
+    "404.html",
+    "version.json"
+  ]
 }
