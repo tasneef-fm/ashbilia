@@ -48,6 +48,7 @@ window.WardatBackend = (() => {
     if (/Email not confirmed/i.test(m)) return 'البريد الإلكتروني غير مؤكد داخل Supabase';
     if (/JWT|session|not authenticated|يلزم تسجيل الدخول/i.test(m)) return 'يلزم تسجيل الدخول';
     if (/duplicate key|unique constraint/i.test(m)) return 'السجل موجود مسبقًا أو الرقم مستخدم';
+    if (/invalid input syntax for type numeric/i.test(m)) return 'توجد قيمة رقمية غير صحيحة أو حقل رقمي فارغ';
     if (/row-level security|permission denied/i.test(m)) return 'ليست لديك صلاحية لتنفيذ هذه العملية';
     return m.replace(/^Error:\s*/i, '') || 'تعذر تنفيذ العملية';
   }
@@ -124,6 +125,8 @@ window.WardatBackend = (() => {
     }
     if (p === '/api/auth/permissions-version' && method === 'GET') return await rpc('get_my_permissions_version');
 
+    if (p === '/api/settings/financial' && method === 'GET') return await rpc('get_financial_settings');
+
     // المتجر العام
     if (p === '/api/public/bootstrap' && method === 'GET') {
       const [categories, products, services, reviews] = await Promise.all([
@@ -166,7 +169,7 @@ window.WardatBackend = (() => {
         [/^\/api\/purchase-orders$/, method==='GET'?'purchases.view':'purchases.create'], [/^\/api\/purchase-orders\/[^/]+\/receive$/, 'purchases.receive'],
         [/^\/api\/smart\/suggestions$/, 'smart.view'], [/^\/api\/reports$/, 'reports.view'],
         [/^\/api\/notifications$/, 'notifications.view'], [/^\/api\/notifications\/read$/, 'notifications.resolve'],
-        [/^\/api\/audit$/, 'audit.view'], [/^\/api\/attendance\/state$/, 'attendance.view'], [/^\/api\/attendance\/clock$/, 'attendance.clock'], [/^\/api\/attendance\/dashboard$/, 'attendance.view'], [/^\/api\/attendance\/month$/, 'attendance.view'], [/^\/api\/leaves\/types$/, 'leaves.view'], [/^\/api\/leaves$/, method==='GET'?'leaves.view':'leaves.create'], [/^\/api\/leaves\/[^/]+$/, 'leaves.approve'], [/^\/api\/payroll\/my-payslips$/, 'payroll.view_self'], [/^\/api\/payroll\/runs$/, method==='GET'?'payroll.view':'payroll.create'], [/^\/api\/payroll\/runs\/[^/]+$/, 'payroll.view'], [/^\/api\/payroll\/runs\/[^/]+\/calculate$/, 'payroll.recalculate'], [/^\/api\/payroll\/runs\/[^/]+\/status$/, 'payroll.approve'], [/^\/api\/payroll\/items\/[^/]+\/pay$/, 'payroll.pay'], [/^\/api\/compensation$/, method==='GET'?'compensation.view':'compensation.create'], [/^\/api\/compensation\/[^/]+\/[^/]+\/approve$/, 'compensation.approve'], [/^\/api\/filter-presets$/, method==='GET'?'filters.use':'filters.save'], [/^\/api\/data-quality$/, 'data_quality.view'], [/^\/api\/data-quality\/action$/, 'data_quality.resolve'], [/^\/api\/settings\/clear-demo$/, 'settings.clear_demo'],
+        [/^\/api\/audit$/, 'audit.view'], [/^\/api\/attendance\/state$/, 'attendance.view'], [/^\/api\/attendance\/clock$/, 'attendance.clock'], [/^\/api\/attendance\/dashboard$/, 'attendance.view'], [/^\/api\/attendance\/month$/, 'attendance.view'], [/^\/api\/leaves\/types$/, 'leaves.view'], [/^\/api\/leaves$/, method==='GET'?'leaves.view':'leaves.create'], [/^\/api\/leaves\/[^/]+$/, 'leaves.approve'], [/^\/api\/payroll\/my-payslips$/, 'payroll.view_self'], [/^\/api\/payroll\/runs$/, method==='GET'?'payroll.view':'payroll.create'], [/^\/api\/payroll\/runs\/[^/]+$/, 'payroll.view'], [/^\/api\/payroll\/runs\/[^/]+\/calculate$/, 'payroll.recalculate'], [/^\/api\/payroll\/runs\/[^/]+\/status$/, 'payroll.approve'], [/^\/api\/payroll\/items\/[^/]+\/pay$/, 'payroll.pay'], [/^\/api\/compensation$/, method==='GET'?'compensation.view':'compensation.create'], [/^\/api\/compensation\/[^/]+\/[^/]+\/approve$/, 'compensation.approve'], [/^\/api\/filter-presets$/, method==='GET'?'filters.use':'filters.save'], [/^\/api\/data-quality$/, 'data_quality.view'], [/^\/api\/data-quality\/action$/, 'data_quality.resolve'], [/^\/api\/settings\/financial$/, method==='GET'?'settings.view':'settings.manage'], [/^\/api\/settings\/clear-demo$/, 'settings.clear_demo'], [/^\/api\/documents\//, 'documents.view'], [/^\/api\/records\//, method==='GET'?'audit.view':'records.soft_delete'],
         [/^\/api\/access\/users(?:\/[^/]+)?$/, method==='GET'?'users.view':method==='POST'?'users.create':method==='PATCH'?['users.edit','users.disable']:'users.manage_permissions'],
         [/^\/api\/access\/roles$/, 'roles.view'], [/^\/api\/access\//, 'users.manage_permissions']
       ];
@@ -297,6 +300,12 @@ window.WardatBackend = (() => {
     if (p === '/api/audit' && method === 'GET') return { items: await rows('v_audit_logs', '*', q => q.order('created_at', { ascending: false }).limit(250)) };
     if (p === '/api/settings/clear-demo' && method === 'POST') return await rpc('clear_demo_data');
 
+
+    if (p === '/api/settings/financial' && method === 'POST') return await rpc('save_financial_settings',{p_payload:body});
+    const documentMatch=p.match(/^\/api\/documents\/([^/]+)\/([^/]+)$/);if(documentMatch&&method==='GET')return await rpc('get_print_document',{p_type:documentMatch[1],p_id:documentMatch[2]});
+    const deleteMatch=p.match(/^\/api\/records\/([^/]+)\/([^/]+)\/soft-delete$/);if(deleteMatch&&method==='POST')return await rpc('soft_delete_record',{p_entity:deleteMatch[1],p_id:deleteMatch[2],p_reason:body.reason||''});
+    const restoreMatch=p.match(/^\/api\/records\/([^/]+)\/([^/]+)\/restore$/);if(restoreMatch&&method==='POST')return await rpc('restore_record',{p_entity:restoreMatch[1],p_id:restoreMatch[2],p_reason:body.reason||''});
+    const auditMatch=p.match(/^\/api\/records\/([^/]+)\/([^/]+)\/audit$/);if(auditMatch&&method==='GET')return {items:await rows('v_audit_logs','*',q=>q.eq('entity_id',auditMatch[2]).order('created_at',{ascending:false}).limit(100))};
 
     // إدارة المستخدمين والصلاحيات
     if (p === '/api/access/users' && method === 'POST') {
