@@ -524,10 +524,112 @@ function productForm(p=null){
 }
 function categoryForm(){if(!guard('categories.create'))return;openForm('إضافة تصنيف',`<form class="form-grid single"><label>اسم التصنيف<input name="name_ar" required></label><label>الاسم الإنجليزي<input name="name_en"></label><label>الرابط المختصر<input name="slug"></label><button class="btn btn-primary" type="submit">حفظ التصنيف</button></form>`,async b=>{await api('/api/categories',{method:'POST',body:b});toast('تم حفظ التصنيف');await renderProducts();});}
 
-async function renderInventory(){const d=await api('/api/inventory');state.cache.inventory=d.items;const mayMove=window.PermissionsService.canAny(['inventory.adjust','inventory.issue','inventory.receive']);const inventoryValue=can('inventory.view_financial')?money(d.items.reduce((s,x)=>s+Number(x.current_qty)*Number(x.average_cost),0)):'—';$('#content').innerHTML=`<div class="toolbar"><input class="search" id="inventorySearch" placeholder="ابحث في المخزون">${mayMove?'<button class="btn btn-primary" id="inventoryAdjust">تسجيل حركة</button>':''}</div><div class="metrics">${metricHtml('إجمالي الأصناف',d.items.length)}${metricHtml('منخفضة الكمية',d.items.filter(x=>Number(x.available_qty)<=Number(x.min_qty)).length)}${metricHtml('القيمة التقريبية',inventoryValue)}${metricHtml('الكميات المحجوزة',number(d.items.reduce((s,x)=>s+Number(x.reserved_qty),0)))}</div><div class="grid-2"><section class="panel"><div class="panel-head"><h3>الأرصدة الحالية</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>الصنف</th><th>الحالي</th><th>المحجوز</th><th>المتاح</th><th>التالف</th><th>الموقع</th><th>تنبيه</th></tr></thead><tbody id="inventoryRows">${inventoryRows(d.items)}</tbody></table></div></section><section class="panel"><div class="panel-head"><h3>آخر الحركات</h3></div><div class="list">${d.movements.slice(0,18).map(m=>`<div class="list-item"><div><b>${escapeHtml(m.product_name||'صنف')}</b><small>${escapeHtml(m.movement_type)} · ${dt(m.created_at)}</small></div><strong style="color:${Number(m.qty)>=0?'var(--green)':'var(--red)'}">${Number(m.qty)>=0?'+':''}${number(m.qty)}</strong></div>`).join('')}</div></section></div>`;if($('#inventoryAdjust'))$('#inventoryAdjust').onclick=()=>inventoryAdjustForm();$('#inventorySearch').oninput=e=>{$('#inventoryRows').innerHTML=inventoryRows(d.items.filter(x=>`${x.name_ar} ${x.sku}`.toLowerCase().includes(e.target.value.toLowerCase())));};}
 function metricHtml(label,val){return `<div class="metric-card"><small>${label}</small><strong>${val}</strong></div>`;}
 function inventoryRows(items){const financial=can('inventory.view_financial');return items.map(i=>`<tr><td><b>${escapeHtml(i.name_ar)}</b><small>${escapeHtml(i.sku)}</small></td><td>${number(i.current_qty)}</td><td>${number(i.reserved_qty)}</td><td>${number(i.available_qty)}</td><td>${financial?money(i.purchase_price):'—'}</td><td>${money(i.sale_price)}</td><td>${financial?money(i.purchase_value):'—'}</td><td>${financial?money(i.sale_value):'—'}</td><td>${escapeHtml(i.location_code||'—')}</td><td>${Number(i.available_qty)<=Number(i.min_qty)?'<span class="status red">منخفض</span>':'<span class="status green">جيد</span>'}</td></tr>`).join('');}
-async function renderInventory(){const d=await api('/api/inventory');state.cache.inventory=d.items;const mayMove=window.PermissionsService.canAny(['inventory.adjust','inventory.issue','inventory.receive']);const s=d.summary||{};$('#content').innerHTML=`<div class="toolbar"><input class="search" id="inventorySearch" placeholder="ابحث في المخزون">${mayMove?'<button class="btn btn-primary" id="inventoryAdjust">تسجيل حركة</button>':''}</div><div class="metrics">${metricHtml('إجمالي الأصناف',s.item_count??d.items.length)}${metricHtml('إجمالي القطع',number(s.total_pieces??d.items.reduce((a,x)=>a+Number(x.current_qty),0)))}${metricHtml('إجمالي قيمة الشراء',can('inventory.view_financial')?money(s.purchase_total):'—')}${metricHtml('إجمالي قيمة البيع',can('inventory.view_financial')?money(s.sale_total):'—')}${metricHtml('الربح المتوقع',can('inventory.view_financial')?money(s.expected_profit):'—')}${metricHtml('الكميات المحجوزة',number(s.reserved_pieces??d.items.reduce((a,x)=>a+Number(x.reserved_qty),0)))}${metricHtml('منخفضة الكمية',number(s.low_stock_count??d.items.filter(x=>Number(x.available_qty)<=Number(x.min_qty)).length))}</div><div class="grid-2"><section class="panel"><div class="panel-head"><h3>الأرصدة الحالية</h3><small>تعديل بيانات المنتج لا يغيّر الكمية</small></div><div class="table-wrap"><table class="data-table"><thead><tr><th>الصنف</th><th>الحالي</th><th>المحجوز</th><th>المتاح</th><th>سعر الشراء</th><th>سعر البيع</th><th>قيمة الشراء</th><th>قيمة البيع</th><th>الموقع</th><th>تنبيه</th></tr></thead><tbody id="inventoryRows">${inventoryRows(d.items)}</tbody></table></div></section><section class="panel"><div class="panel-head"><h3>آخر الحركات</h3></div><div class="list">${d.movements.slice(0,18).map(m=>`<div class="list-item"><div><b>${escapeHtml(m.product_name||'صنف')}</b><small>${escapeHtml(m.movement_type)} · ${dt(m.created_at)}</small></div><strong style="color:${Number(m.qty)>=0?'var(--green)':'var(--red)'}">${Number(m.qty)>=0?'+':''}${number(m.qty)}</strong></div>`).join('')}</div></section></div>`;if($('#inventoryAdjust'))$('#inventoryAdjust').onclick=()=>inventoryAdjustForm();$('#inventorySearch').oninput=e=>{$('#inventoryRows').innerHTML=inventoryRows(d.items.filter(x=>`${x.name_ar} ${x.sku}`.toLowerCase().includes(e.target.value.toLowerCase())));};}
+function inventoryPrintSummary(items){
+  const list=items||[],financial=can('inventory.view_financial');
+  const totalPieces=list.reduce((a,x)=>a+Number(x.current_qty||0),0);
+  const reservedPieces=list.reduce((a,x)=>a+Number(x.reserved_qty||0),0);
+  const purchaseTotal=list.reduce((a,x)=>a+Number(x.purchase_value??Number(x.current_qty||0)*Number(x.purchase_price||x.average_cost||0)),0);
+  const saleTotal=list.reduce((a,x)=>a+Number(x.sale_value??Number(x.current_qty||0)*Number(x.sale_price||0)),0);
+  return{
+    item_count:list.length,
+    total_pieces:totalPieces,
+    reserved_pieces:reservedPieces,
+    available_pieces:list.reduce((a,x)=>a+Number(x.available_qty||0),0),
+    purchase_total:financial?purchaseTotal:null,
+    sale_total:financial?saleTotal:null,
+    expected_profit:financial?saleTotal-purchaseTotal:null,
+    low_stock_count:list.filter(x=>Number(x.available_qty||0)<=Number(x.min_qty||0)).length
+  };
+}
+function buildInventoryPrintDocument(items,search=''){
+  const s=inventoryPrintSummary(items);
+  const now=new Date();
+  const number=`INV-${now.toISOString().slice(0,10).replaceAll('-','')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+  return{
+    type:'inventory',
+    title:'تقرير المخزون',
+    header:{
+      document_no:number,
+      created_at:now.toISOString(),
+      location:'المستودع الرئيسي',
+      filter_text:search?`نتائج البحث: ${search}`:'جميع أصناف المخزون',
+      notes:'الأرقام الواردة في هذا التقرير مستخرجة مباشرة من أرصدة المخزون وقت إصدار التقرير.'
+    },
+    summary:s,
+    items:(items||[]).map((x,index)=>({
+      index:index+1,
+      sku:x.sku||'—',
+      name_ar:x.name_ar||'—',
+      current_qty:Number(x.current_qty||0),
+      reserved_qty:Number(x.reserved_qty||0),
+      available_qty:Number(x.available_qty||0),
+      purchase_price:Number(x.purchase_price||x.average_cost||0),
+      sale_price:Number(x.sale_price||0),
+      purchase_value:Number(x.purchase_value??Number(x.current_qty||0)*Number(x.purchase_price||x.average_cost||0)),
+      sale_value:Number(x.sale_value??Number(x.current_qty||0)*Number(x.sale_price||0)),
+      location_code:x.location_code||'—',
+      status:Number(x.available_qty||0)<=Number(x.min_qty||0)?'منخفض':'جيد'
+    })),
+    show_totals:false
+  };
+}
+async function openInventoryPrint(items,search='',autoPdf=false){
+  if(!can('inventory.view'))return toast('ليست لديك صلاحية عرض المخزون','error');
+  await window.WardatDocuments.open('inventory',null,{
+    document:buildInventoryPrintDocument(items,search),
+    size:'A4',
+    orientation:'landscape',
+    autoPdf
+  });
+}
+async function renderInventory(){
+  const d=await api('/api/inventory');
+  state.cache.inventory=d.items;
+  const mayMove=window.PermissionsService.canAny(['inventory.adjust','inventory.issue','inventory.receive']);
+  const s=d.summary||inventoryPrintSummary(d.items);
+  let visibleItems=[...d.items];
+  let searchValue='';
+  $('#content').innerHTML=`<div class="toolbar">
+    <input class="search" id="inventorySearch" placeholder="ابحث في المخزون">
+    <div class="actions">
+      <button class="btn" id="inventoryPrint">طباعة المخزون</button>
+      <button class="btn" id="inventoryPdf">تنزيل PDF</button>
+      ${mayMove?'<button class="btn btn-primary" id="inventoryAdjust">تسجيل حركة</button>':''}
+    </div>
+  </div>
+  <div class="metrics">
+    ${metricHtml('إجمالي الأصناف',s.item_count??d.items.length)}
+    ${metricHtml('إجمالي القطع',number(s.total_pieces??d.items.reduce((a,x)=>a+Number(x.current_qty),0)))}
+    ${metricHtml('إجمالي قيمة الشراء',can('inventory.view_financial')?money(s.purchase_total):'—')}
+    ${metricHtml('إجمالي قيمة البيع',can('inventory.view_financial')?money(s.sale_total):'—')}
+    ${metricHtml('الربح المتوقع',can('inventory.view_financial')?money(s.expected_profit):'—')}
+    ${metricHtml('الكميات المحجوزة',number(s.reserved_pieces??d.items.reduce((a,x)=>a+Number(x.reserved_qty),0)))}
+    ${metricHtml('منخفضة الكمية',number(s.low_stock_count??d.items.filter(x=>Number(x.available_qty)<=Number(x.min_qty)).length))}
+  </div>
+  <div class="grid-2">
+    <section class="panel">
+      <div class="panel-head"><h3>الأرصدة الحالية</h3><small>تعديل بيانات المنتج لا يغيّر الكمية</small></div>
+      <div class="table-wrap"><table class="data-table">
+        <thead><tr><th>الصنف</th><th>الحالي</th><th>المحجوز</th><th>المتاح</th><th>سعر الشراء</th><th>سعر البيع</th><th>قيمة الشراء</th><th>قيمة البيع</th><th>الموقع</th><th>تنبيه</th></tr></thead>
+        <tbody id="inventoryRows">${inventoryRows(d.items)}</tbody>
+      </table></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head"><h3>آخر الحركات</h3></div>
+      <div class="list">${d.movements.slice(0,18).map(m=>`<div class="list-item"><div><b>${escapeHtml(m.product_name||'صنف')}</b><small>${escapeHtml(m.movement_type)} · ${dt(m.created_at)}</small></div><strong style="color:${Number(m.qty)>=0?'var(--green)':'var(--red)'}">${Number(m.qty)>=0?'+':''}${number(m.qty)}</strong></div>`).join('')}</div>
+    </section>
+  </div>`;
+  if($('#inventoryAdjust'))$('#inventoryAdjust').onclick=()=>inventoryAdjustForm();
+  $('#inventoryPrint').onclick=()=>openInventoryPrint(visibleItems,searchValue,false);
+  $('#inventoryPdf').onclick=()=>openInventoryPrint(visibleItems,searchValue,true);
+  $('#inventorySearch').oninput=e=>{
+    searchValue=e.target.value.trim();
+    visibleItems=d.items.filter(x=>`${x.name_ar} ${x.sku}`.toLowerCase().includes(searchValue.toLowerCase()));
+    $('#inventoryRows').innerHTML=inventoryRows(visibleItems);
+  };
+}
 async function inventoryAdjustForm(productId=''){
   if(!window.PermissionsService.canAny(['inventory.adjust','inventory.issue','inventory.receive']))return toast('ليس لديك صلاحية تسجيل حركة مخزون','error');
   let products=state.cache.products;if(!products){products=(await api('/api/products?active=1')).items;state.cache.products=products;}
