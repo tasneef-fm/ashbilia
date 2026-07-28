@@ -2,7 +2,7 @@
 
 const PORTAL_MODE = document.body?.dataset.portal || 'customer';
 const ADMIN_ROLE_CODES = new Set(['super_admin','admin','management','accountant']);
-const EMPLOYEE_PAGE_IDS = new Set(['dashboard','pos','orders','bookings','quotes','workorders','products','inventory','purchases','customers','smart','reports','attendance','leaves','payroll']);
+const EMPLOYEE_PAGE_IDS = new Set(['dashboard','pos','orders','bookings','quotes','workorders','employees','products','inventory','purchases','customers','smart','reports','attendance','leaves','payroll']);
 
 function portalForRole(roleCode='') {
   if (roleCode === 'customer') return 'customer';
@@ -49,6 +49,7 @@ const pages = [
   {id:'bookings',icon:'◫',label:'الحجوزات والمناسبات',permission:'bookings.view'},
   {id:'quotes',icon:'◰',label:'عروض الأسعار',permission:'quotations.view'},
   {id:'workorders',icon:'✓',label:'أوامر العمل',permission:'workorders.view'},
+  {id:'employees',icon:'♟',label:'الموظفون',permission:'employees.view'},
   {id:'products',icon:'✿',label:'المنتجات',permission:'products.view'},
   {id:'inventory',icon:'▦',label:'المخزون',permission:'inventory.view'},
   {id:'purchases',icon:'⇣',label:'المشتريات والموردون',permission:'purchases.view'},
@@ -386,8 +387,8 @@ function renderNav(){
   nav.innerHTML=allowed.map(p=>`<button class="nav-item ${state.currentPage===p.id?'active':''}" data-page="${p.id}"><span class="ico">${p.icon}</span>${escapeHtml(pageLabel(p))}</button>`).join('');
   $$('[data-page]',nav).forEach(b=>b.onclick=()=>{state.currentPage=b.dataset.page;renderNav();renderPage(state.currentPage);$('.sidebar')?.classList.remove('open');});
 }
-async function renderPage(page,force=false){const meta=availablePages().find(p=>p.id===page);if(!meta||!can(meta.permission)){state.currentPage=null;renderNav();$('#pageTitle').textContent='غير مصرح';$('#pageSubtitle').textContent='تم منع فتح الرابط المباشر';$('#content').innerHTML='<div class="empty"><h3>ليس لديك صلاحية لفتح هذا القسم</h3><p>تم منع تحميل بيانات القسم.</p></div>';return;}state.currentPage=page;renderNav();$('#pageTitle').textContent=pageLabel(meta);$('#pageSubtitle').textContent=pageSub(page);$('#content').innerHTML='<div class="empty">جاري تحميل البيانات...</div>';try{switch(page){case'dashboard':await renderDashboard();break;case'products':await renderProducts();break;case'inventory':await renderInventory();break;case'pos':await renderPOS();break;case'orders':await renderOrders();break;case'bookings':await renderBookings();break;case'quotes':await renderQuotes();break;case'workorders':await renderWorkOrders();break;case'customers':await renderCustomers();break;case'purchases':await renderPurchases();break;case'smart':await renderSmart();break;case'reports':await renderReports();break;case'users':await renderUsers();break;case'audit':await renderAudit();break;case'dataquality':await renderDataQuality();break;case'attendance':await renderAttendance();break;case'leaves':await renderLeaves();break;case'payroll':await renderPayroll();break;case'compensation':await renderCompensation();break;case'settings':renderSettings();break;default:$('#content').innerHTML='<div class="empty">القسم قيد الإعداد</div>';}applyPagePermissions(page);enhanceCurrentPageTables(page);enhanceSearchableSelects($('#content'));bindRecordActions();}catch(err){$('#content').innerHTML=`<div class="empty">${escapeHtml(err.message)}</div>`;toast(err.message,'error');}}
-function pageSub(p){return {dashboard:'نظرة مباشرة على التشغيل والمبيعات',products:'إدارة المنتجات والأسعار والتصنيفات',inventory:'الكميات والحركات والتنبيهات',pos:'بيع مباشر وإصدار فاتورة وخصم المخزون',orders:'متابعة الطلبات والمدفوعات والتسليم',bookings:'تقويم الأعراس والمناسبات والمعاينات',quotes:'من عرض السعر إلى الحجز وأمر العمل',workorders:'تنفيذ المهام والتوثيق وإعادة المعدات',customers:'سجل العميل والطلبات ونقاط الولاء',purchases:'الموردون وأوامر الشراء والاستلام',smart:'تنبيهات واقتراحات مبنية على بيانات النظام',reports:'تقارير قابلة للفلترة والتصدير',users:'إدارة المستخدمين والأدوار والصلاحيات الفعلية',audit:'كل تعديل وحذف واعتماد داخل النظام',dataquality:'كشف التكرار وعدم التطابق والأخطاء قبل أن تؤثر على التشغيل',attendance:'تسجيل وتحضير ومراجعة الحضور والغياب والأوفر تايم',leaves:'طلبات الإجازات والمأذونيات وربطها بالحضور والراتب',payroll:'الاحتساب والمراجعة والاعتماد والقسائم والصرف',compensation:'السلف والأقساط والجزاءات والمكافآت والعمولات',settings:'بيانات المنشأة والتجربة والإعدادات'}[p]||'';}
+async function renderPage(page,force=false){const meta=availablePages().find(p=>p.id===page);if(!meta||!can(meta.permission)){state.currentPage=null;renderNav();$('#pageTitle').textContent='غير مصرح';$('#pageSubtitle').textContent='تم منع فتح الرابط المباشر';$('#content').innerHTML='<div class="empty"><h3>ليس لديك صلاحية لفتح هذا القسم</h3><p>تم منع تحميل بيانات القسم.</p></div>';return;}state.currentPage=page;renderNav();$('#pageTitle').textContent=pageLabel(meta);$('#pageSubtitle').textContent=pageSub(page);$('#content').innerHTML='<div class="empty">جاري تحميل البيانات...</div>';try{switch(page){case'dashboard':await renderDashboard();break;case'products':await renderProducts();break;case'inventory':await renderInventory();break;case'pos':await renderPOS();break;case'orders':await renderOrders();break;case'bookings':await renderBookings();break;case'quotes':await renderQuotes();break;case'workorders':await renderWorkOrders();break;case'employees':await renderEmployees();break;case'customers':await renderCustomers();break;case'purchases':await renderPurchases();break;case'smart':await renderSmart();break;case'reports':await renderReports();break;case'users':await renderUsers();break;case'audit':await renderAudit();break;case'dataquality':await renderDataQuality();break;case'attendance':await renderAttendance();break;case'leaves':await renderLeaves();break;case'payroll':await renderPayroll();break;case'compensation':await renderCompensation();break;case'settings':renderSettings();break;default:$('#content').innerHTML='<div class="empty">القسم قيد الإعداد</div>';}applyPagePermissions(page);enhanceCurrentPageTables(page);enhanceSearchableSelects($('#content'));bindRecordActions();}catch(err){$('#content').innerHTML=`<div class="empty">${escapeHtml(err.message)}</div>`;toast(err.message,'error');}}
+function pageSub(p){return {dashboard:'نظرة مباشرة على التشغيل والمبيعات',products:'إدارة المنتجات والأسعار والتصنيفات',inventory:'الكميات والحركات والتنبيهات',pos:'بيع مباشر وإصدار فاتورة وخصم المخزون',orders:'متابعة الطلبات والمدفوعات والتسليم',bookings:'تقويم الأعراس والمناسبات والمعاينات',quotes:'من عرض السعر إلى الحجز وأمر العمل',workorders:'تنفيذ المهام والتوثيق وإعادة المعدات',employees:'ملفات الموظفين وربطهم بالحضور والغياب والرواتب',customers:'سجل العميل والطلبات ونقاط الولاء',purchases:'الموردون وأوامر الشراء والاستلام',smart:'تنبيهات واقتراحات مبنية على بيانات النظام',reports:'تقارير قابلة للفلترة والتصدير',users:'إدارة المستخدمين والأدوار والصلاحيات الفعلية',audit:'كل تعديل وحذف واعتماد داخل النظام',dataquality:'كشف التكرار وعدم التطابق والأخطاء قبل أن تؤثر على التشغيل',attendance:'تسجيل وتحضير ومراجعة الحضور والغياب والأوفر تايم',leaves:'طلبات الإجازات والمأذونيات وربطها بالحضور والراتب',payroll:'الاحتساب والمراجعة والاعتماد والقسائم والصرف',compensation:'السلف والأقساط والجزاءات والمكافآت والعمولات',settings:'بيانات المنشأة والتجربة والإعدادات'}[p]||'';}
 
 async function renderDashboard(){
   const d=await api('/api/dashboard');const m=d.metrics;
@@ -804,6 +805,131 @@ async function renderQuotes(){const {items}=await api('/api/quotations');state.c
 function quoteRows(items){return items.map(q=>`<tr><td><b>${escapeHtml(q.quotation_no)}</b><small>${q.item_count} بنود</small></td><td>${escapeHtml(q.customer_name)}<small>${escapeHtml(q.phone||'')}</small></td><td>${dateOnly(q.event_date)}</td><td>${money(q.total)}</td><td>${money(q.deposit)}</td><td>${money(q.remaining)}</td><td>${dateOnly(q.valid_until)}</td><td>${statusBadge(q.status)}</td><td>${recordActionButtons('quotation',q,{extra:q.status!=='approved'?`<button class="mini-btn" data-approve-quote="${q.id}">اعتماد وتحويل</button>`:'<span class="status green">تم التحويل</span>'})}</td></tr>`).join('');}
 function bindQuoteActions(){$$('[data-approve-quote]').forEach(b=>b.onclick=async()=>{if(!confirm('سيتم إنشاء حجز مؤكد وعقد وأمر عمل. متابعة؟'))return;try{await api(`/api/quotations/${b.dataset.approveQuote}/approve`,{method:'POST'});toast('تم اعتماد العرض وإنشاء أمر العمل');await renderQuotes();}catch(err){toast(err.message,'error')}});}
 function quoteForm(booking=null){if(!guard('quotations.create'))return;openForm('إنشاء عرض سعر',`<form class="form-grid" id="quoteCreate"><input type="hidden" name="booking_id" value="${booking?.id||''}"><label>اسم العميل<input name="customer_name" value="${escapeHtml(booking?.customer_name||'')}" required></label><label>الجوال<input name="phone" value="${escapeHtml(booking?.phone||'')}"></label><label>تاريخ المناسبة<input type="date" name="event_date" value="${booking?.start_at?.slice(0,10)||''}"></label><label>مكان التنفيذ<input name="venue" value="${escapeHtml(booking?.venue_name||'')}"></label><label>العربون<input type="number" step="0.01" name="deposit" value="${booking?.deposit||0}"></label><label>صالح حتى<input type="date" name="valid_until"></label><div class="span-2"><div class="panel-head"><h3>البنود</h3><button type="button" class="mini-btn" id="addQuoteLine">إضافة بند</button></div><div id="quoteLines"></div></div><label class="span-2">شروط الدفع<textarea name="payment_terms">العربون لتأكيد الحجز والباقي قبل التنفيذ.</textarea></label><label class="span-2">ملاحظات<textarea name="notes">${escapeHtml(booking?.details||'')}</textarea></label><button class="btn btn-primary span-2" type="submit">حفظ عرض السعر</button></form>`,async b=>{const lines=$$('.quote-line','#quoteCreate').map(l=>({description:$('[name=description]',l).value,qty:Number($('[name=qty]',l).value)||1,unit_price:Number($('[name=unit_price]',l).value)||0,discount:Number($('[name=line_discount]',l).value)||0})).filter(x=>x.description);b.items=lines;b.deposit=Number(b.deposit)||0;b.idempotency_key=crypto.randomUUID();await api('/api/quotations',{method:'POST',body:b});toast('تم إنشاء عرض السعر');await renderQuotes();});setTimeout(()=>{const add=()=>{$('#quoteLines').insertAdjacentHTML('beforeend',`<div class="quote-line form-grid" style="margin-bottom:10px"><label>الوصف<input name="description" required></label><label>الكمية<input type="number" name="qty" value="1"></label><label>سعر الوحدة<input type="number" step="0.01" name="unit_price"></label><label>خصم البند<input type="number" step="0.01" name="line_discount" value="0"></label></div>`);};$('#addQuoteLine').onclick=add;add();},0);}
+
+
+async function renderEmployees(){
+  const d=await api('/api/employees?include_inactive=1');
+  const items=d.items||[];
+  state.cache.employees=items;
+  const active=items.filter(x=>x.is_active).length;
+  const withShift=items.filter(x=>x.shift_id).length;
+  const withSalary=items.filter(x=>Number(x.base_salary||x.salary||0)>0).length;
+  const linkedUsers=items.filter(x=>x.has_user_account).length;
+  $('#content').innerHTML=`<div class="toolbar">
+    <input class="search" id="employeeSearch" placeholder="ابحث بالاسم أو الكود أو الجوال أو القسم">
+    ${can('employees.create')?'<button class="btn btn-primary" id="addEmployee">إضافة موظف</button>':''}
+  </div>
+  <div class="metrics">
+    ${metricHtml('إجمالي الموظفين',items.length)}
+    ${metricHtml('النشطون',active)}
+    ${metricHtml('مرتبطون بورديات',withShift)}
+    ${metricHtml('لديهم ملف راتب',withSalary)}
+    ${metricHtml('لديهم حساب دخول',linkedUsers)}
+  </div>
+  <section class="panel">
+    <div class="panel-head"><h3>سجل الموظفين</h3><small>الموظف ← الحضور والغياب ← مسير الرواتب</small></div>
+    <div class="table-wrap"><table class="data-table">
+      <thead><tr><th>الموظف</th><th>التواصل</th><th>الوظيفة</th><th>الفرع والقسم</th><th>الوردية والموقع</th><th>الراتب الأساسي</th><th>الحساب</th><th>الحالة</th><th>الإجراءات</th></tr></thead>
+      <tbody id="employeeRows">${employeeRows(items)}</tbody>
+    </table></div>
+  </section>`;
+  $('#addEmployee')?.addEventListener('click',()=>employeeForm());
+  $('#employeeSearch').oninput=e=>{
+    const q=normalizeSmartText(e.target.value);
+    const filtered=items.filter(x=>!q||normalizeSmartText(`${x.name} ${x.employee_no||''} ${x.phone||''} ${x.department||''} ${x.job_title||''}`).includes(q));
+    $('#employeeRows').innerHTML=employeeRows(filtered);
+    bindEmployeeActions();
+  };
+  bindEmployeeActions();
+}
+function employeeRows(items){
+  if(!items.length)return '<tr><td colspan="9"><div class="empty">لا يوجد موظفون</div></td></tr>';
+  return items.map(e=>`<tr>
+    <td><b>${escapeHtml(e.name)}</b><small>${escapeHtml(e.employee_no||'بدون كود')}</small></td>
+    <td>${escapeHtml(e.phone||'—')}<small>${escapeHtml(e.email||'')}</small></td>
+    <td>${escapeHtml(e.job_title||'—')}<small>${escapeHtml(e.contract_type||'')}</small></td>
+    <td>${escapeHtml(e.branch||'—')}<small>${escapeHtml(e.department||'')}</small></td>
+    <td>${escapeHtml(e.shift_name||'غير مربوط')}<small>${escapeHtml(e.work_location_name||'بدون موقع')}</small></td>
+    <td>${can('payroll.view_financial')?money(e.base_salary??e.salary):'—'}<small>${escapeHtml({monthly_30:'شهري 30 يومًا',monthly:'شهري',daily:'يومي',hourly:'بالساعة',shift:'بالوردية',task:'بالمهمة'}[e.calculation_method]||'غير محدد')}</small></td>
+    <td>${e.has_user_account?'<span class="status green">مرتبط</span>':'<span class="status amber">بدون حساب</span>'}</td>
+    <td>${e.is_active?'<span class="status green">نشط</span>':'<span class="status red">موقوف</span>'}</td>
+    <td><div class="table-actions">
+      ${can('employees.edit')?`<button class="mini-btn" data-employee-edit="${e.id}">تعديل</button>`:''}
+      ${can('attendance.view')?`<button class="mini-btn" data-employee-attendance="${e.id}">الحضور</button>`:''}
+      ${can('payroll.view')?`<button class="mini-btn" data-employee-payroll="${e.id}">الراتب</button>`:''}
+      ${can('employees.disable')?`<button class="mini-btn ${e.is_active?'danger':''}" data-employee-status="${e.id}" data-active="${e.is_active?'0':'1'}">${e.is_active?'إيقاف':'تفعيل'}</button>`:''}
+    </div></td>
+  </tr>`).join('');
+}
+function bindEmployeeActions(){
+  $$('[data-employee-edit]').forEach(b=>b.onclick=()=>employeeForm(b.dataset.employeeEdit));
+  $$('[data-employee-attendance]').forEach(b=>b.onclick=()=>{
+    localStorage.setItem(filterStorageKey('attendance'),JSON.stringify({employee_id:b.dataset.employeeAttendance,date:hrToday()}));
+    renderPage('attendance');
+  });
+  $$('[data-employee-payroll]').forEach(b=>b.onclick=()=>{
+    renderPage('payroll');
+  });
+  $$('[data-employee-status]').forEach(b=>b.onclick=async()=>{
+    const active=b.dataset.active==='1';
+    const reason=prompt(active?'سبب إعادة تفعيل الموظف:':'سبب إيقاف الموظف:');
+    if(!reason)return;
+    if(!confirm(active?'إعادة تفعيل الموظف؟':'سيتم إيقاف الموظف وحساب الدخول المرتبط. متابعة؟'))return;
+    await api(`/api/employees/${b.dataset.employeeStatus}/status`,{method:'PATCH',body:{is_active:active,reason}});
+    toast(active?'تم تفعيل الموظف':'تم إيقاف الموظف');
+    await renderEmployees();
+  });
+}
+async function employeeForm(id=null){
+  const employee=id?(state.cache.employees||[]).find(x=>x.id===id):null;
+  const setup=await api('/api/hr/setup');
+  const roles=await api('/api/access/roles');
+  const roleItems=roles.items||roles.roles||[];
+  const salary=Number(employee?.base_salary??employee?.salary??0);
+  openForm(employee?'تعديل بيانات الموظف':'إضافة موظف',`<form class="form-grid" data-no-draft="true">
+    <h3 class="span-2">البيانات الأساسية</h3>
+    <label>كود الموظف<input name="employee_no" value="${escapeHtml(employee?.employee_no||'')}" placeholder="يولد تلقائيًا عند تركه فارغًا"></label>
+    <label>اسم الموظف<input name="name" value="${escapeHtml(employee?.name||'')}" required></label>
+    <label>رقم الجوال<input name="phone" value="${escapeHtml(employee?.phone||'')}"></label>
+    <label>البريد الإلكتروني<input type="email" name="email" value="${escapeHtml(employee?.email||'')}"></label>
+    <label>المسمى الوظيفي<input name="job_title" value="${escapeHtml(employee?.job_title||'')}"></label>
+    <label>دور النظام<select name="role_code">${roleItems.map(r=>`<option value="${escapeHtml(r.code)}" ${r.code===(employee?.role_code||'florist')?'selected':''}>${escapeHtml(r.name_ar||r.code)}</option>`).join('')}</select></label>
+    <label>الفرع<input name="branch" value="${escapeHtml(employee?.branch||'')}"></label>
+    <label>القسم<input name="department" value="${escapeHtml(employee?.department||'')}"></label>
+    <label>نوع العقد<select name="contract_type"><option value="">غير محدد</option>${['دوام كامل','دوام جزئي','مؤقت','موسمي'].map(x=>`<option ${x===employee?.contract_type?'selected':''}>${x}</option>`).join('')}</select></label>
+    <label>نظام العمل<input name="work_system" value="${escapeHtml(employee?.work_system||'')}" placeholder="مثال: 9 ساعات أو ورديتان"></label>
+    <label>الجنسية<input name="nationality" value="${escapeHtml(employee?.nationality||'')}"></label>
+    <label>تاريخ المباشرة<input type="date" name="hire_date" value="${escapeHtml(employee?.hire_date||hrToday())}"></label>
+    <label>تاريخ النهاية<input type="date" name="end_date" value="${escapeHtml(employee?.end_date||'')}"></label>
+    <label>رابط الصورة<input name="photo_url" value="${escapeHtml(employee?.photo_url||'')}"></label>
+    <label class="check-label"><input type="checkbox" name="is_active" ${employee?.is_active===false?'':'checked'}> موظف نشط</label>
+    <hr class="span-2"><h3 class="span-2">ربط الحضور والغياب</h3>
+    <label>الوردية<select name="shift_id"><option value="">بدون ربط حاليًا</option>${(setup.shifts||[]).map(x=>`<option value="${x.id}" ${x.id===employee?.shift_id?'selected':''}>${escapeHtml(x.name)}</option>`).join('')}</select></label>
+    <label>موقع العمل<select name="work_location_id"><option value="">بدون موقع</option>${(setup.locations||[]).map(x=>`<option value="${x.id}" ${x.id===employee?.work_location_id?'selected':''}>${escapeHtml(x.name)}</option>`).join('')}</select></label>
+    <label>سريان الوردية من<input type="date" name="assignment_effective_from" value="${hrToday()}"></label>
+    <div class="span-2 demo-note">يظهر الموظف تلقائيًا في شاشة الحضور والغياب. عدم تسجيل الحضور في يوم عمل يُحسب غيابًا، ما لم توجد إجازة معتمدة.</div>
+    <hr class="span-2"><h3 class="span-2">ملف الراتب</h3>
+    <label>طريقة الاحتساب<select name="calculation_method">${[['monthly_30','شهري ثابت 30 يومًا'],['monthly','شهري حسب أيام الشهر'],['daily','يومي'],['hourly','بالساعة'],['shift','حسب الوردية'],['task','حسب المهام']].map(([v,l])=>`<option value="${v}" ${v===(employee?.calculation_method||'monthly_30')?'selected':''}>${l}</option>`).join('')}</select></label>
+    <label>الراتب الأساسي<input type="number" min="0" step="0.01" name="base_salary" value="${salary}"></label>
+    <label>بدل السكن<input type="number" min="0" step="0.01" name="housing_allowance" value="${Number(employee?.housing_allowance||0)}"></label>
+    <label>بدل النقل<input type="number" min="0" step="0.01" name="transport_allowance" value="${Number(employee?.transport_allowance||0)}"></label>
+    <label>بدل الطعام<input type="number" min="0" step="0.01" name="food_allowance" value="${Number(employee?.food_allowance||0)}"></label>
+    <label>بدل الاتصال<input type="number" min="0" step="0.01" name="communication_allowance" value="${Number(employee?.communication_allowance||0)}"></label>
+    <label>بدلات أخرى<input type="number" min="0" step="0.01" name="other_allowances" value="${Number(employee?.other_allowances||0)}"></label>
+    <label>قيمة اليوم<input type="number" min="0" step="0.0001" name="daily_rate" value="${Number(employee?.daily_rate||0)}"></label>
+    <label>قيمة الساعة<input type="number" min="0" step="0.0001" name="hourly_rate" value="${Number(employee?.hourly_rate||0)}"></label>
+    <label>ساعة الأوفر تايم<input type="number" min="0" step="0.0001" name="overtime_hour_rate" value="${Number(employee?.overtime_hour_rate||0)}"></label>
+    <label>التقريب<select name="rounding_rule"><option value="nearest_riyal">أقرب ريال</option><option value="up_riyal">للريال الأعلى</option><option value="none">بدون تقريب</option></select></label>
+    <label class="check-label"><input type="checkbox" name="deduct_late" ${employee?.deduct_late===false?'':'checked'}> خصم التأخير والانصراف المبكر</label>
+    <label>سريان الراتب من<input type="date" name="salary_effective_from" value="${hrToday()}"></label>
+    <button class="btn btn-primary span-2" type="submit">حفظ الموظف والربط المالي</button>
+  </form>`,async b=>{
+    b.salary=b.base_salary;
+    await api(id?`/api/employees/${id}`:'/api/employees',{method:id?'PUT':'POST',body:b});
+    toast(id?'تم تحديث الموظف وربطه':'تمت إضافة الموظف وربطه بالحضور والرواتب');
+    await renderEmployees();
+  });
+}
 
 async function renderWorkOrders(){
   const woPromise=api('/api/work-orders');

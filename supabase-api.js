@@ -341,7 +341,25 @@ window.WardatBackend = (() => {
     if (p === '/api/work-orders' && method === 'POST') return await rpc('create_work_order', { p_payload: body });
     const workOrderMatch = p.match(/^\/api\/work-orders\/([^/]+)$/);
     if (workOrderMatch && method === 'PATCH') return await rpc('update_work_order', { p_work_order_id: workOrderMatch[1], p_payload: body });
-    if (p === '/api/employees' && method === 'GET') return { items: await rows('v_employees', 'id,name,job_title,role_code,is_active', q => q.eq('is_active', true).order('name')) };
+    if (p === '/api/employees' && method === 'GET') {
+      const includeInactive=u.searchParams.get('include_inactive')==='1';
+      return {items:await rows('v_employees','*',q=>{
+        if(!includeInactive)q=q.eq('is_active',true);
+        return q.order('name');
+      })};
+    }
+    if (p === '/api/employees' && method === 'POST')
+      return await rpc('upsert_employee_v20',{p_employee_id:null,p_payload:body});
+    const employeeMatch=p.match(/^\/api\/employees\/([^/]+)$/);
+    if(employeeMatch&&method==='PUT')
+      return await rpc('upsert_employee_v20',{p_employee_id:employeeMatch[1],p_payload:body});
+    const employeeStatusMatch=p.match(/^\/api\/employees\/([^/]+)\/status$/);
+    if(employeeStatusMatch&&method==='PATCH')
+      return await rpc('set_employee_active_v20',{
+        p_employee_id:employeeStatusMatch[1],
+        p_is_active:!!body.is_active,
+        p_reason:body.reason||''
+      });
 
     // الموردون والمشتريات
     if (p === '/api/suppliers' && method === 'GET') return { items: await rows('v_suppliers', '*', q => q.order('name')) };
