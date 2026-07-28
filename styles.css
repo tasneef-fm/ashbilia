@@ -89,3 +89,6 @@
   .product-image-gallery{grid-template-columns:repeat(2,minmax(0,1fr))}
   .product-image-preview img{height:125px}
 }
+
+.booking-editor-form{gap:16px}.booking-form-section{border:1px solid var(--line);border-radius:18px;padding:16px;background:#fffaf3}.booking-form-section .panel-head{margin-bottom:14px}.booking-requests-wrap{background:#fff;border-radius:14px}.booking-requests-table select,.booking-requests-table input{min-width:110px}.booking-requests-table .request-product{min-width:260px}.request-inventory-fields{display:grid;gap:5px}.request-inventory-fields small{color:var(--gold-dark);font-size:11px}.booking-request-summary{display:flex;justify-content:flex-end;gap:24px;flex-wrap:wrap;margin-top:12px;padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:12px}.booking-request-summary b{color:var(--gold-dark)}
+@media(max-width:800px){.booking-requests-table{min-width:820px}.booking-form-section{padding:12px}.booking-form-section .panel-head{align-items:flex-start;flex-direction:column}.booking-form-section .panel-head .actions{width:100%}.booking-form-section .panel-head .actions .btn{flex:1}}

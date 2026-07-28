@@ -242,7 +242,7 @@ window.WardatBackend = (() => {
         [/^\/api\/inventory$/, 'inventory.view'], [/^\/api\/inventory\/adjust$/, ['inventory.adjust','inventory.issue','inventory.receive']],
         [/^\/api\/customers$/, method==='GET'?'customers.view':'customers.create'],
         [/^\/api\/orders$/, method==='GET'?'orders.view':'pos.create_sale'], [/^\/api\/orders\/[^/]+$/, body.status==='cancelled'?'orders.cancel':body.status==='returned'?'orders.return':'orders.edit'],
-        [/^\/api\/bookings$/, method==='GET'?'bookings.view':'bookings.create'], [/^\/api\/bookings\/[^/]+$/, body.status==='confirmed'?'bookings.approve':body.status==='cancelled'?'bookings.cancel':'bookings.edit'],
+        [/^\/api\/bookings\/product-options$/, ['bookings.create','bookings.edit','bookings.view']], [/^\/api\/bookings\/[^/]+\/details$/, 'bookings.view'], [/^\/api\/bookings$/, method==='GET'?'bookings.view':'bookings.create'], [/^\/api\/bookings\/[^/]+$/, method==='GET'?'bookings.view':method==='PUT'?'bookings.edit':body.status==='confirmed'?'bookings.approve':body.status==='cancelled'?'bookings.cancel':'bookings.edit'],
         [/^\/api\/quotations$/, method==='GET'?'quotations.view':'quotations.create'], [/^\/api\/quotations\/[^/]+\/approve$/, 'quotations.approve'],
         [/^\/api\/work-orders$/, method==='GET'?'workorders.view':'workorders.create'], [/^\/api\/work-orders\/[^/]+$/, ['workorders.edit','workorders.assign','workorders.update_status','workorders.upload_files','workorders.complete']],
         [/^\/api\/employees$/, ['employees.view','workorders.assign']],
@@ -318,7 +318,11 @@ window.WardatBackend = (() => {
     // الحجوزات
     if (p === '/api/bookings' && method === 'GET') {const search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u);let q=c.from('v_bookings').select('*',{count:'exact'}).order('start_at',{ascending:false}).range(from,to);if(search)q=q.or(`booking_no.ilike.%${search}%,customer_name.ilike.%${search}%,event_type.ilike.%${search}%,phone.ilike.%${search}%`);const result=await q;return pagedResult(unwrap(result),result.count,page,pageSize);}
     if (p === '/api/bookings' && method === 'POST') return await rpc('create_staff_booking', { p_payload: body });
+    if (p === '/api/bookings/product-options' && method === 'GET') return { items: await rpc('list_booking_product_options') };
+    const bookingDetailsMatch = p.match(/^\/api\/bookings\/([^/]+)\/details$/);
+    if (bookingDetailsMatch && method === 'GET') return await rpc('get_booking_details', { p_booking_id: bookingDetailsMatch[1] });
     const bookingMatch = p.match(/^\/api\/bookings\/([^/]+)$/);
+    if (bookingMatch && method === 'PUT') return await rpc('update_booking_full', { p_booking_id: bookingMatch[1], p_payload: body });
     if (bookingMatch && method === 'PATCH') return await rpc('update_booking_record', {
       p_booking_id: bookingMatch[1],
       p_status: body.status,

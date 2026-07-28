@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.07.27-v18-professional-product-preview",
+  "version": "2026.07.28-v19-booking-full-editor",
   "generated": "2026-07-21",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 113,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-07-27T22:30:00+03:00",
+  "updated_at": "2026-07-28T12:30:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -83,5 +83,9 @@
   "professional_product_preview": true,
   "product_preview_zoom": true,
   "product_preview_share": true,
-  "product_preview_full_image": true
+  "product_preview_full_image": true,
+  "booking_full_edit": true,
+  "booking_inventory_requests": true,
+  "booking_manual_requests": true,
+  "booking_inventory_deduction_on_save": false
 }
