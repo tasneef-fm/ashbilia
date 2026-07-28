@@ -78,6 +78,10 @@ function productImageUrl(value='',storagePath=''){
 function productImageAttrs(value='',storagePath='',alt=''){
   return `src="${escapeHtml(productImageUrl(value,storagePath))}" alt="${escapeHtml(alt)}" onerror="this.onerror=null;this.src='assets/logo.png'"`;
 }
+function isServiceProduct(product={}){
+  const unit=String(product.unit||'').trim().toLowerCase();
+  return product.product_type==='service'||unit==='خدمة'||unit==='service';
+}
 function money(v=0){if(v===null||v===undefined||v==='')return '—';return window.WardatFinancial?.format(v)||new Intl.NumberFormat('ar-SA',{style:'currency',currency:'SAR',minimumFractionDigits:2,maximumFractionDigits:2}).format(Number(v)||0);}
 function can(permissionKey){return window.PermissionsService?.can(permissionKey)===true;}
 function guard(permissionKey){if(can(permissionKey))return true;toast('ليس لديك صلاحية لتنفيذ هذه العملية','error');return false;}
@@ -216,7 +220,7 @@ function renderStore(){
 }
 function renderStoreProducts(){
   let products=state.publicData.products.filter(p=>!state.category||p.category_id===state.category);
-  $('#storeProducts').innerHTML=products.length?products.map(p=>`<article class="product-card"><div class="product-image"><img loading="lazy" ${productImageAttrs(p.image_url,p.image_storage_path,p.name_ar)}><span class="product-badge">${escapeHtml(p.category_name||'وردة أشبيليا')}</span></div><div class="product-body"><small>${escapeHtml(p.sku)}</small><h3>${escapeHtml(p.name_ar)}</h3><p>${escapeHtml(p.description||'تنسيق فاخر حسب الطلب')}</p><div class="product-foot"><span class="price">${money(p.sale_price)} ${p.compare_price?`<del>${money(p.compare_price)}</del>`:''}</span><div class="product-actions"><button class="btn btn-outline product-view-btn" type="button" data-view-product="${p.id}">عرض</button><button class="add-btn" type="button" data-add="${p.id}" aria-label="أضف للسلة">+</button></div></div></div></article>`).join(''):`<div class="empty">لا توجد منتجات في هذا التصنيف.</div>`;
+  $('#storeProducts').innerHTML=products.length?products.map(p=>`<article class="product-card"><div class="product-image"><img loading="lazy" ${productImageAttrs(p.image_url,p.image_storage_path,p.name_ar)}><span class="product-badge">${escapeHtml(p.category_name||'وردة أشبيليا')}</span></div><div class="product-body"><small>${escapeHtml(p.sku)}</small><h3>${escapeHtml(p.name_ar)}</h3><p>${escapeHtml(p.description||'تنسيق فاخر حسب الطلب')}</p><div class="product-foot"><span class="price">${isServiceProduct(p)?'السعر يحدد عند البيع':`${money(p.sale_price)} ${p.compare_price?`<del>${money(p.compare_price)}</del>`:''}`}</span><div class="product-actions"><button class="btn btn-outline product-view-btn" type="button" data-view-product="${p.id}">عرض</button><button class="add-btn" type="button" data-add="${p.id}" aria-label="أضف للسلة" ${isServiceProduct(p)?'disabled title="يحدد السعر من الموظف"':''}>+</button></div></div></div></article>`).join(''):`<div class="empty">لا توجد منتجات في هذا التصنيف.</div>`;
   $$('[data-add]','#storeProducts').forEach(b=>b.onclick=()=>addToCart(b.dataset.add));
   $$('[data-view-product]','#storeProducts').forEach(b=>b.onclick=()=>showStoreProductPreview(b.dataset.viewProduct));
 }
@@ -232,8 +236,9 @@ function showStoreProductPreview(productId){
   const modal=$('#formModal'),content=$('#formModalContent');
   if(!modal||!content)return;
 
+  const service=isServiceProduct(product);
   const available=Math.max(0,Number(product.available_qty??(Number(product.stock_qty||0)-Number(product.reserved_qty||0))));
-  const isAvailable=available>0;
+  const isAvailable=service||available>0;
   const description=product.description||'منتج مختار بعناية من وردة أشبيليا، مناسب للتنسيقات والهدايا والمناسبات.';
   const category=product.category_name||'فازات';
   const supplier=product.supplier_name||'جرد أشبيليا';
@@ -261,7 +266,7 @@ function showStoreProductPreview(productId){
     <section class="professional-product-info">
       <div class="preview-info-topline">
         <span class="preview-category">${escapeHtml(category)}</span>
-        <span class="preview-stock ${isAvailable?'available':'unavailable'}">${isAvailable?`متوفر ${number(available)} قطعة`:'غير متوفر حاليًا'}</span>
+        <span class="preview-stock ${isAvailable?'available':'unavailable'}">${service?'خدمة بسعر يحدد عند البيع':isAvailable?`متوفر ${number(available)} قطعة`:'غير متوفر حاليًا'}</span>
       </div>
       <h2 id="previewProductTitle">${escapeHtml(product.name_ar)}</h2>
       <p class="preview-description">${escapeHtml(description)}</p>
@@ -274,7 +279,7 @@ function showStoreProductPreview(productId){
       </div>
 
       <div class="preview-price-panel">
-        <div><span>السعر</span><strong>${money(product.sale_price)}</strong>${product.compare_price?`<del>${money(product.compare_price)}</del>`:''}</div>
+        <div><span>السعر</span><strong>${service?'يحدد عند البيع':money(product.sale_price)}</strong>${!service&&product.compare_price?`<del>${money(product.compare_price)}</del>`:''}</div>
         <small>السعر النهائي حسب إعدادات الضريبة في الطلب</small>
       </div>
 
@@ -285,7 +290,7 @@ function showStoreProductPreview(productId){
       </div>
 
       <div class="professional-preview-actions">
-        <button class="btn btn-primary preview-cart-btn" type="button" id="storePreviewAdd" ${isAvailable?'':'disabled'}>${isAvailable?'إضافة إلى السلة':'نفدت الكمية'}</button>
+        <button class="btn btn-primary preview-cart-btn" type="button" id="storePreviewAdd" ${service||!isAvailable?'disabled':''}>${service?'يحدد السعر من الموظف':isAvailable?'إضافة إلى السلة':'نفدت الكمية'}</button>
         <button class="btn btn-outline preview-share-btn" type="button" id="storePreviewShare">مشاركة المنتج</button>
       </div>
     </section>
@@ -299,7 +304,7 @@ function showStoreProductPreview(productId){
   });
   $('#storePreviewZoom')?.addEventListener('click',()=>modal.classList.toggle('preview-zoomed'));
   $('#storePreviewShare')?.addEventListener('click',async()=>{
-    const shareData={title:product.name_ar,text:`${product.name_ar} — ${money(product.sale_price)}`,url:location.href};
+    const shareData={title:product.name_ar,text:`${product.name_ar} — ${service?'السعر يحدد عند البيع':money(product.sale_price)}`,url:location.href};
     if(navigator.share){
       try{await navigator.share(shareData);return;}catch(error){if(error?.name==='AbortError')return;}
     }
@@ -307,7 +312,7 @@ function showStoreProductPreview(productId){
     catch{window.open(`https://wa.me/?text=${encodeURIComponent(`${shareData.text}\n${shareData.url}`)}`,'_blank');}
   });
 }
-function addToCart(productId){const p=state.publicData.products.find(x=>x.id===productId);if(!p)return;const existing=state.cart.find(x=>x.product_id===productId);const available=Number(p.available_qty??(Number(p.stock_qty||0)-Number(p.reserved_qty||0)));if(existing){if(existing.qty>=available)return toast('لا توجد كمية إضافية متاحة','error');existing.qty++;}else{if(available<1)return toast('المنتج غير متاح حاليًا','error');state.cart.push({product_id:p.id,name:p.name_ar,price:Number(p.sale_price),qty:1,image:productImageUrl(p.image_url,p.image_storage_path)});}saveCart();toast('تمت إضافة المنتج للسلة');}
+function addToCart(productId){const p=state.publicData.products.find(x=>x.id===productId);if(!p)return;if(isServiceProduct(p))return toast('سعر هذه الخدمة يحدده الموظف عند البيع','error');const existing=state.cart.find(x=>x.product_id===productId);const available=Number(p.available_qty??(Number(p.stock_qty||0)-Number(p.reserved_qty||0)));if(existing){if(existing.qty>=available)return toast('لا توجد كمية إضافية متاحة','error');existing.qty++;}else{if(available<1)return toast('المنتج غير متاح حاليًا','error');state.cart.push({product_id:p.id,name:p.name_ar,price:Number(p.sale_price),qty:1,image:productImageUrl(p.image_url,p.image_storage_path)});}saveCart();toast('تمت إضافة المنتج للسلة');}
 function updateCartCount(){$('#cartCount').textContent=state.cart.reduce((s,i)=>s+i.qty,0);}
 function renderCartDrawer(){
   $('#cartItems').innerHTML=state.cart.length?state.cart.map((i,idx)=>`<div class="cart-line"><div><b>${escapeHtml(i.name)}</b><small>${money(i.price)}</small></div><div class="qty-control"><button data-dec="${idx}">−</button><span>${i.qty}</span><button data-inc="${idx}">+</button></div><button class="mini-btn" data-remove="${idx}">حذف</button></div>`).join(''):`<div class="empty">السلة فارغة</div>`;
@@ -420,7 +425,7 @@ async function renderProducts(options={}){
   $('#content').innerHTML=`<div class="toolbar"><input class="search" id="productSearch" value="${escapeHtml(search)}" placeholder="ابحث بالاسم أو الكود أو الباركود"><div><button class="btn btn-outline" id="addCategory">تصنيف جديد</button> <button class="btn btn-primary" id="addProduct">منتج جديد</button></div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>المنتج</th><th>الكود</th><th>التصنيف</th><th>سعر البيع</th><th>المتاح</th><th>الحد الأدنى</th><th>الحالة</th><th>الإجراءات</th></tr></thead><tbody id="productRows"></tbody></table></div>${pagerHtml({...meta,page},'products')}`;
   renderProductRows(items);const input=$('#productSearch');input.oninput=debounce(e=>renderProducts({page:1,search:e.target.value.trim()}),400);input.focus();input.setSelectionRange(input.value.length,input.value.length);$('#addProduct').onclick=()=>productForm();$('#addCategory').onclick=categoryForm();bindPager('products',renderProducts,search);
 }
-function renderProductRows(items){$('#productRows').innerHTML=items.map(p=>`<tr><td><div style="display:flex;align-items:center;gap:10px"><img class="thumb" ${productImageAttrs(p.image_url,p.image_storage_path,p.name_ar)}><div><b>${escapeHtml(p.name_ar)}</b><small>${escapeHtml(p.unit||'قطعة')}</small></div></div></td><td>${escapeHtml(p.sku)}</td><td>${escapeHtml(p.category_name||'—')}</td><td>${money(p.sale_price)}</td><td>${number(p.available_qty)}</td><td>${number(p.min_stock)}</td><td>${p.is_active?statusBadge('completed'):statusBadge('cancelled')}</td><td>${recordActionButtons('product',p,{edit:true,extra:`<button class="mini-btn" data-stock-product="${p.id}">مخزون</button>`})}</td></tr>`).join('');$$('[data-record-edit="product"]').forEach(b=>b.onclick=()=>productForm(state.cache.products.find(x=>x.id===b.dataset.id)));$$('[data-stock-product]').forEach(b=>b.onclick=()=>inventoryAdjustForm(b.dataset.stockProduct));bindRecordActions();}
+function renderProductRows(items){$('#productRows').innerHTML=items.map(p=>{const service=isServiceProduct(p);return `<tr><td><div style="display:flex;align-items:center;gap:10px"><img class="thumb" ${productImageAttrs(p.image_url,p.image_storage_path,p.name_ar)}><div><b>${escapeHtml(p.name_ar)}</b><small>${escapeHtml(p.unit||'قطعة')}${service?' · سعر يدوي':''}</small></div></div></td><td>${escapeHtml(p.sku)}</td><td>${escapeHtml(p.category_name||'—')}</td><td>${service?'<span class="status amber">يكتب عند البيع</span>':money(p.sale_price)}</td><td>${service?'<span class="status green">خدمة</span>':number(p.available_qty)}</td><td>${service?'—':number(p.min_stock)}</td><td>${p.is_active?statusBadge('completed'):statusBadge('cancelled')}</td><td>${recordActionButtons('product',p,{edit:true,extra:service?'':`<button class="mini-btn" data-stock-product="${p.id}">مخزون</button>`})}</td></tr>`;}).join('');$$('[data-record-edit="product"]').forEach(b=>b.onclick=()=>productForm(state.cache.products.find(x=>x.id===b.dataset.id)));$$('[data-stock-product]').forEach(b=>b.onclick=()=>inventoryAdjustForm(b.dataset.stockProduct));bindRecordActions();}
 function productForm(p=null){
   if(!guard(p?'products.edit':'products.create'))return;
   const financialView=can('products.view_financial'),financialEdit=can('products.edit_financial');
@@ -436,11 +441,12 @@ function productForm(p=null){
     <label>طريقة إدخال سعر البيع<select name="price_input_mode"><option value="exclusive">غير شامل الضريبة</option><option value="inclusive">شامل الضريبة</option><option value="exempt">معفى من الضريبة</option></select></label>
     <label>سعر الشراء<input type="number" step="0.01" name="purchase_price" value="${financialView?(p?.purchase_price||0):''}" ${financialEdit?'':'disabled'}></label>
     <label>متوسط التكلفة<input type="number" step="0.01" name="average_cost" value="${financialView?(p?.average_cost||0):''}" ${financialEdit?'':'disabled'}></label>
-    <label>سعر البيع<input type="number" step="0.01" name="sale_price" value="${p?.sale_price||0}" ${financialEdit?'required':'disabled'}></label>
+    <label id="productSalePriceField">سعر البيع<input type="number" min="0" step="0.01" name="sale_price" value="${p?.sale_price||0}" ${financialEdit?'required':'disabled'}><small id="productSalePriceHelp"></small></label>
     <label>الحد الأدنى للربح<input type="number" step="0.01" name="min_profit" value="${financialView?(p?.min_profit||0):''}" ${financialEdit?'':'disabled'}></label>
-    ${p?`<label>الرصيد الحالي<input value="${number(p.stock_qty||0)} ${escapeHtml(p.unit||'قطعة')} — يعدل من المخزون فقط" disabled></label>`:`<label>الرصيد الافتتاحي<input type="number" step="0.01" name="stock_qty" value="0"></label>`}
-    <label>حد إعادة الطلب<input type="number" step="0.01" name="min_stock" value="${p?.min_stock||0}"></label>
-    <label>الوحدة<input name="unit" value="${escapeHtml(p?.unit||'قطعة')}"></label>
+    ${p?`<label id="productStockField">الرصيد الحالي<input value="${number(p.stock_qty||0)} ${escapeHtml(p.unit||'قطعة')} — يعدل من المخزون فقط" disabled></label>`:`<label id="productStockField">الرصيد الافتتاحي<input type="number" min="0" step="0.01" name="stock_qty" value="0"></label>`}
+    <label id="productMinStockField">حد إعادة الطلب<input type="number" min="0" step="0.01" name="min_stock" value="${p?.min_stock||0}"></label>
+    <label>الوحدة<select name="unit" id="productUnit">${['قطعة','باقة','رول','متر','ورقة','صندوق','خدمة'].map(unit=>`<option value="${unit}" ${unit===(p?.unit||'قطعة')?'selected':''}>${unit}</option>`).join('')}${p?.unit&&!['قطعة','باقة','رول','متر','ورقة','صندوق','خدمة'].includes(p.unit)?`<option value="${escapeHtml(p.unit)}" selected>${escapeHtml(p.unit)}</option>`:''}</select></label>
+    <div class="span-2 demo-note hidden" id="servicePricingNotice"><b>خدمة بسعر مفتوح:</b> يكتب الموظف السعر يدويًا في نقطة البيع، ولا يتم خصم مخزون.</div>
     <label>المستودع<input value="المستودع الرئيسي — يحدد تلقائيًا" disabled></label>
     <label>رابط صورة خارجي اختياري<input name="image_url" value="${escapeHtml(p?.image_url||'')}" placeholder="يستخدم فقط عند عدم رفع صورة"></label>
 
@@ -474,7 +480,10 @@ function productForm(p=null){
     <label><input type="checkbox" name="is_active" ${p?.is_active!==0?'checked':''}> نشط</label>
     <button class="btn btn-primary span-2" type="submit">حفظ المنتج والصور</button>
   </form>`,async (b,form)=>{
+    const service=String(b.unit||'').trim()==='خدمة';
     ['purchase_price','average_cost','sale_price','min_profit','stock_qty','min_stock'].forEach(k=>{if(b[k]!==undefined)b[k]=Number(b[k])||0;});
+    b.product_type=service?'service':'sale';
+    if(service){b.sale_price=0;b.stock_qty=0;b.min_stock=0;}
     if(p){['stock_qty','current_qty','quantity','opening_stock','reserved_qty','available_qty'].forEach(k=>delete b[k]);}
     const saved=await api(p?`/api/products/${p.id}`:'/api/products',{method:p?'PUT':'POST',body:b});
     const productId=saved?.item?.id||p?.id;
@@ -518,12 +527,29 @@ function productForm(p=null){
   setTimeout(async()=>{
     const form=$('#productFinanceForm'),summary=$('#productFinancialSummary');
     const dropzone=$('#productImageDropzone',form),input=$('#productImageFiles',form),gallery=$('#productImageGallery',form),counter=$('#productImageCount',form);
+    const unitSelect=$('#productUnit',form),saleInput=$('[name="sale_price"]',form);
+    const stockField=$('#productStockField',form),minStockField=$('#productMinStockField',form);
+    const notice=$('#servicePricingNotice',form),saleHelp=$('#productSalePriceHelp',form);
+
+    const toggleService=()=>{
+      const service=unitSelect?.value==='خدمة';
+      stockField?.classList.toggle('hidden',service);
+      minStockField?.classList.toggle('hidden',service);
+      notice?.classList.toggle('hidden',!service);
+      if(saleInput){
+        saleInput.required=!service&&financialEdit;
+        saleInput.placeholder=service?'يكتب السعر عند البيع':'';
+        if(service)saleInput.value='0';
+      }
+      if(saleHelp)saleHelp.textContent=service?'يُدخل يدويًا في نقطة البيع':'';
+    };
+    unitSelect?.addEventListener('change',()=>{toggleService();calc();});
 
     const calc=()=>{
       const r=window.WardatFinancial.document({lines:[{qty:1,unitPrice:form.sale_price.value,cost:form.average_cost.value,priceMode:form.price_input_mode.value}]});
       window.WardatFinancial.paint(summary,r,financialView);
     };
-    form?.addEventListener('input',calc);form?.addEventListener('change',calc);calc();
+    form?.addEventListener('input',calc);form?.addEventListener('change',calc);toggleService();calc();
 
     const activeExisting=()=>existingImages.filter(x=>!removedImageIds.includes(x.id));
     const totalCount=()=>activeExisting().length+pendingFiles.length;
@@ -733,11 +759,31 @@ async function inventoryAdjustForm(productId=''){
 }
 
 async function renderPOS(){const [{items:products},{items:customers}]=await Promise.all([api('/api/products?active=1'),api('/api/customers')]);state.cache.products=products;state.cache.customers=customers;$('#content').innerHTML=`<div class="pos-layout"><section><div class="toolbar"><input class="search" id="posSearch" placeholder="بحث بالمنتج أو الباركود"><span class="kpi-pill">المتاح للبيع: ${products.filter(p=>Number(p.available_qty)>0).length}</span></div><div id="posProducts" class="pos-products">${posProductCards(products)}</div></section><aside class="panel cart-panel"><div class="panel-head"><h3>فاتورة جديدة</h3><button class="mini-btn" id="clearPos">مسح</button></div><div id="posCart"></div><div class="form-grid single"><label>طريقة إدخال السعر<select id="posPriceMode"><option value="exclusive">غير شامل الضريبة</option><option value="inclusive">شامل الضريبة</option><option value="exempt">معفى من الضريبة</option></select></label><label>نوع خصم الفاتورة<select id="posDiscountType"><option value="fixed">مبلغ ثابت</option><option value="percent">نسبة مئوية</option></select></label><label>قيمة الخصم<input id="posDiscount" type="number" min="0" step="0.01" value="0"></label><label>التوصيل<input id="posDelivery" type="number" min="0" step="0.01" value="0"></label><label>إضافات أخرى<input id="posExtras" type="number" min="0" step="0.01" value="0"></label><label>المبلغ المدفوع<input id="posPaid" type="number" min="0" step="0.01" value="0"></label><label>العميل<select id="posCustomer"><option value="">عميل نقدي سريع</option>${customers.map(c=>`<option value="${c.id}">${escapeHtml(c.name)} · ${escapeHtml(c.phone)}</option>`).join('')}</select></label><label>طريقة الدفع<select id="posMethod"><option value="cash">نقدًا</option><option value="mada">مدى/شبكة</option><option value="bank_transfer">تحويل بنكي</option><option value="online">دفع إلكتروني</option></select></label></div>${financialSummaryMarkup('posTotals')}<button class="btn btn-primary wide" id="completeSale">إتمام البيع وإصدار الفاتورة</button></aside></div>`;renderPosCart();$('#posSearch').oninput=e=>$('#posProducts').innerHTML=posProductCards(products.filter(p=>`${p.name_ar} ${p.sku} ${p.barcode||''}`.toLowerCase().includes(e.target.value.toLowerCase())));$('#posProducts').onclick=e=>{const b=e.target.closest('[data-pos-add]');if(b)posAdd(b.dataset.posAdd);};$('#clearPos').onclick=()=>{state.posCart=[];renderPosCart();};['posDiscount','posDiscountType','posDelivery','posExtras','posPaid','posPriceMode'].forEach(id=>$('#'+id)?.addEventListener('input',renderPosCart));$('#completeSale').onclick=completeSale;}
-function posProductCards(items){return items.map(p=>`<article class="pos-card"><img ${productImageAttrs(p.image_url,p.image_storage_path,p.name_ar)}><div><h4>${escapeHtml(p.name_ar)}</h4><small>${number(p.available_qty)} ${escapeHtml(p.unit)}</small><div class="product-foot"><b>${money(p.sale_price)}</b><button class="add-btn" data-pos-add="${p.id}" ${Number(p.available_qty)<=0?'disabled':''}>+</button></div></div></article>`).join('');}
-function posAdd(pid){const p=state.cache.products.find(x=>x.id===pid),line=state.posCart.find(x=>x.product_id===pid);if(!p)return;if(line){if(line.qty>=Number(p.available_qty))return toast('الكمية غير متاحة','error');line.qty++;}else state.posCart.push({product_id:p.id,name:p.name_ar,price:Number(p.sale_price),cost:Number(p.average_cost||0),qty:1,available:Number(p.available_qty)});renderPosCart();}
+function posProductCards(items){return items.map(p=>{const service=isServiceProduct(p);return `<article class="pos-card ${service?'service-pos-card':''}"><img ${productImageAttrs(p.image_url,p.image_storage_path,p.name_ar)}><div><h4>${escapeHtml(p.name_ar)}</h4><small>${service?'خدمة · بدون خصم مخزون':`${number(p.available_qty)} ${escapeHtml(p.unit)}`}</small><div class="product-foot"><b>${service?'اكتب السعر عند البيع':money(p.sale_price)}</b><button class="add-btn" data-pos-add="${p.id}" ${!service&&Number(p.available_qty)<=0?'disabled':''}>+</button></div></div></article>`;}).join('');}
+function posAdd(pid){
+  const p=state.cache.products.find(x=>x.id===pid);
+  if(!p)return;
+  if(isServiceProduct(p)){
+    openForm(`تسعير الخدمة — ${p.name_ar}`,`<form class="form-grid single" data-no-draft="true"><div class="demo-note"><b>${escapeHtml(p.name_ar)}</b><br>اكتب السعر المتفق عليه. لن يتم خصم مخزون.</div><label>سعر الخدمة<input type="number" name="price" min="0.01" step="0.01" required autofocus></label><label>الكمية<input type="number" name="qty" min="0.01" step="0.01" value="1" required></label><button class="btn btn-primary" type="submit">إضافة الخدمة للفاتورة</button></form>`,async b=>{
+      const price=Number(b.price),qty=Number(b.qty);
+      if(!(price>0)||!(qty>0))throw new Error('أدخل السعر والكمية بصورة صحيحة');
+      state.posCart.push({line_id:crypto.randomUUID(),product_id:p.id,name:p.name_ar,price,cost:Number(p.average_cost||0),qty,available:null,is_service:true});
+      renderPosCart();toast('تمت إضافة الخدمة بالسعر اليدوي');
+    });
+    return;
+  }
+  const line=state.posCart.find(x=>x.product_id===pid&&!x.is_service);
+  if(line){if(line.qty>=Number(p.available_qty))return toast('الكمية غير متاحة','error');line.qty++;}
+  else state.posCart.push({line_id:crypto.randomUUID(),product_id:p.id,name:p.name_ar,price:Number(p.sale_price),cost:Number(p.average_cost||0),qty:1,available:Number(p.available_qty),is_service:false});
+  renderPosCart();
+}
+function editPosServicePrice(index){
+  const line=state.posCart[index];if(!line?.is_service)return;
+  openForm(`تعديل سعر — ${line.name}`,`<form class="form-grid single" data-no-draft="true"><label>سعر الخدمة<input type="number" name="price" min="0.01" step="0.01" value="${Number(line.price||0)}" required></label><label>الكمية<input type="number" name="qty" min="0.01" step="0.01" value="${Number(line.qty||1)}" required></label><button class="btn btn-primary" type="submit">حفظ السعر</button></form>`,async b=>{const price=Number(b.price),qty=Number(b.qty);if(!(price>0)||!(qty>0))throw new Error('أدخل السعر والكمية بصورة صحيحة');line.price=price;line.qty=qty;renderPosCart();toast('تم تحديث سعر الخدمة');});
+}
 function currentPosFinancials(){return window.WardatFinancial.document({lines:state.posCart.map(i=>({qty:i.qty,unitPrice:i.price,cost:i.cost,priceMode:$('#posPriceMode')?.value})),invoiceDiscountType:$('#posDiscountType')?.value,invoiceDiscountValue:$('#posDiscount')?.value,deliveryFee:$('#posDelivery')?.value,extrasTotal:$('#posExtras')?.value,paid:$('#posPaid')?.value});}
-function renderPosCart(){const el=$('#posCart');if(!el)return null;el.innerHTML=state.posCart.length?state.posCart.map((i,idx)=>`<div class="cart-line"><div><b>${escapeHtml(i.name)}</b><small>${money(i.price)}</small></div><div class="qty-control"><button data-pdec="${idx}">−</button><span>${i.qty}</span><button data-pinc="${idx}">+</button></div><b>${money(i.qty*i.price)}</b></div>`).join(''):'<div class="empty">أضف المنتجات للفاتورة</div>';const r=currentPosFinancials();window.WardatFinancial.paint($('#posTotals'),r,can('orders.view_financial'));$$('[data-pinc]').forEach(b=>b.onclick=()=>{const i=state.posCart[+b.dataset.pinc];if(i.qty>=i.available)return toast('الكمية غير متاحة','error');i.qty++;renderPosCart();});$$('[data-pdec]').forEach(b=>b.onclick=()=>{const i=state.posCart[+b.dataset.pdec];i.qty--;if(i.qty<=0)state.posCart.splice(+b.dataset.pdec,1);renderPosCart();});return r;}
-async function completeSale(){if(!guard('pos.create_sale'))return;if(!state.posCart.length)return toast('أضف منتجًا واحدًا على الأقل','error');const r=renderPosCart(),customerId=$('#posCustomer').value,customer=state.cache.customers.find(c=>c.id===customerId),paid=Number($('#posPaid').value)||r.total;if(r.totalDiscount>0&&!guard('pos.apply_discount'))return;if(paid<r.total&&!guard('pos.partial_payment'))return;try{const result=await api('/api/orders',{method:'POST',body:{customer_id:customerId||null,customer_name:customer?.name||'عميل نقدي',phone:customer?.phone||'',items:state.posCart.map(i=>({product_id:i.product_id,qty:i.qty,unit_price:i.price,price_input_mode:$('#posPriceMode').value})),discount_type:$('#posDiscountType').value,discount_value:Number($('#posDiscount').value)||0,delivery_fee:Number($('#posDelivery').value)||0,extras_total:Number($('#posExtras').value)||0,price_input_mode:$('#posPriceMode').value,paid_amount:paid,payment_method:$('#posMethod').value,idempotency_key:crypto.randomUUID()}});toast(`تمت عملية البيع: ${result.item.order_no}`);state.posCart=[];await renderPOS();await window.WardatDocuments.open('order',result.item.id);}catch(err){toast(err.message,'error');}}
+function renderPosCart(){const el=$('#posCart');if(!el)return null;el.innerHTML=state.posCart.length?state.posCart.map((i,idx)=>`<div class="cart-line ${i.is_service?'service-cart-line':''}"><div><b>${escapeHtml(i.name)}</b><small>${i.is_service?'خدمة · سعر يدوي':money(i.price)}</small>${i.is_service?`<button class="mini-btn" type="button" data-service-price="${idx}">تعديل السعر</button>`:''}</div><div class="qty-control"><button data-pdec="${idx}">−</button><span>${number(i.qty)}</span><button data-pinc="${idx}">+</button></div><b>${money(i.qty*i.price)}</b></div>`).join(''):'<div class="empty">أضف المنتجات أو الخدمات للفاتورة</div>';const r=currentPosFinancials();window.WardatFinancial.paint($('#posTotals'),r,can('orders.view_financial'));$$('[data-pinc]').forEach(b=>b.onclick=()=>{const i=state.posCart[+b.dataset.pinc];if(!i.is_service&&i.qty>=i.available)return toast('الكمية غير متاحة','error');i.qty++;renderPosCart();});$$('[data-pdec]').forEach(b=>b.onclick=()=>{const i=state.posCart[+b.dataset.pdec];i.qty--;if(i.qty<=0)state.posCart.splice(+b.dataset.pdec,1);renderPosCart();});$$('[data-service-price]').forEach(b=>b.onclick=()=>editPosServicePrice(+b.dataset.servicePrice));return r;}
+async function completeSale(){if(!guard('pos.create_sale'))return;if(!state.posCart.length)return toast('أضف منتجًا واحدًا على الأقل','error');const r=renderPosCart(),customerId=$('#posCustomer').value,customer=state.cache.customers.find(c=>c.id===customerId),paid=Number($('#posPaid').value)||r.total;if(r.totalDiscount>0&&!guard('pos.apply_discount'))return;if(paid<r.total&&!guard('pos.partial_payment'))return;try{const result=await api('/api/orders',{method:'POST',body:{customer_id:customerId||null,customer_name:customer?.name||'عميل نقدي',phone:customer?.phone||'',items:state.posCart.map(i=>({product_id:i.product_id,qty:i.qty,unit_price:i.price,is_service:!!i.is_service,price_input_mode:$('#posPriceMode').value})),discount_type:$('#posDiscountType').value,discount_value:Number($('#posDiscount').value)||0,delivery_fee:Number($('#posDelivery').value)||0,extras_total:Number($('#posExtras').value)||0,price_input_mode:$('#posPriceMode').value,paid_amount:paid,payment_method:$('#posMethod').value,idempotency_key:crypto.randomUUID()}});toast(`تمت عملية البيع: ${result.item.order_no}`);state.posCart=[];await renderPOS();await window.WardatDocuments.open('order',result.item.id);}catch(err){toast(err.message,'error');}}
 async function renderOrders(options={}){const page=Number(options.page||state.cache.ordersPage?.page||1),search=options.search??state.cache.ordersPage?.search??'';const {items,...meta}=await api(`/api/orders?page=${page}&page_size=40&search=${encodeURIComponent(search)}`);state.cache.orders=items;state.cache.ordersPage={...meta,page,search};$('#content').innerHTML=`<div class="toolbar"><input class="search" id="orderSearch" value="${escapeHtml(search)}" placeholder="رقم الطلب، العميل أو الجوال"><div class="kpi-row"><span class="kpi-pill">سجلات الصفحة ${number(items.length)}</span><span class="kpi-pill">إجمالي النتائج ${number(meta.total||0)}</span></div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>الطلب</th><th>العميل</th><th>الإجمالي</th><th>المدفوع</th><th>الدفع</th><th>الحالة</th><th>التاريخ</th><th>إجراء</th></tr></thead><tbody id="orderRows">${orderRows(items)}</tbody></table></div>${pagerHtml({...meta,page},'orders')}`;const input=$('#orderSearch');input.oninput=debounce(e=>renderOrders({page:1,search:e.target.value.trim()}),400);input.focus();input.setSelectionRange(input.value.length,input.value.length);bindOrderActions();bindPager('orders',renderOrders,search);}
 function orderRows(items){return items.map(o=>`<tr><td><b>${escapeHtml(o.order_no)}</b><small>${escapeHtml(o.fulfillment_type)}</small></td><td>${escapeHtml(o.customer_name||'عميل نقدي')}<small>${escapeHtml(o.phone||'')}</small></td><td>${money(o.total)}</td><td>${money(o.paid_amount)}</td><td>${statusBadge(o.payment_status)}</td><td>${statusBadge(o.status)}</td><td>${dt(o.created_at)}</td><td>${recordActionButtons('order',o,{edit:true,extra:`<button class="mini-btn" data-order-status="${o.id}">الحالة</button>`})}</td></tr>`).join('');}
 function bindOrderActions(){$$('[data-order-status]').forEach(b=>b.onclick=async()=>{if(!window.PermissionsService.canAny(['orders.edit','orders.cancel','orders.return']))return toast('ليس لديك صلاحية لتحديث الطلب','error');const o=state.cache.orders.find(x=>x.id===b.dataset.orderStatus),flow=await api(`/api/workflows/transitions?entity=order&status=${encodeURIComponent(o.status)}`);openForm(`تحديث ${o.order_no}`,`<form class="form-grid single"><label>الحالة<select name="status">${flow.items.map(x=>`<option value="${x.status}" ${x.current?'selected':''}>${escapeHtml(x.label)}</option>`).join('')}</select></label><label>سبب التعديل<textarea name="reason" required></textarea></label><button class="btn btn-primary" type="submit">حفظ</button></form>`,async d=>{const key=d.status==='cancelled'?'orders.cancel':d.status==='returned'?'orders.return':'orders.edit';if(!guard(key))throw new Error('ليست لديك صلاحية للحالة المختارة');await api(`/api/orders/${o.id}`,{method:'PATCH',body:d});toast('تم تحديث الطلب');await renderOrders();});});$$('[data-record-edit="order"]').forEach(b=>b.onclick=()=>document.querySelector(`[data-order-status="${b.dataset.id}"]`)?.click());bindRecordActions();}

@@ -273,7 +273,7 @@ window.WardatBackend = (() => {
       if (search) q=q.or(`name_ar.ilike.%${search}%,sku.ilike.%${search}%,barcode.ilike.%${search}%`);
       const result=await q;const data=unwrap(result);return {...pagedResult(flattenProducts(data),result.count,page,pageSize)};
     }
-    if (p === '/api/products' && method === 'POST') return await rpc('upsert_product', { p_id: null, p_payload: body });
+    if (p === '/api/products' && method === 'POST') return await rpc('upsert_product_v21', { p_id: null, p_payload: body });
     const productImagesMatch = p.match(/^\/api\/products\/([^/]+)\/images$/);
     if (productImagesMatch && method === 'GET') {
       const imageItems=await rpc('list_product_images',{p_product_id:productImagesMatch[1]});return {items:(imageItems||[]).map(i=>({...i,url:productImageUrl(i.url,i.storage_path)}))};
@@ -292,7 +292,7 @@ window.WardatBackend = (() => {
 
 
     const productMatch = p.match(/^\/api\/products\/([^/]+)$/);
-    if (productMatch && method === 'PUT') return await rpc('upsert_product', { p_id: productMatch[1], p_payload: body });
+    if (productMatch && method === 'PUT') return await rpc('upsert_product_v21', { p_id: productMatch[1], p_payload: body });
 
     // المخزون
     if (p === '/api/inventory' && method === 'GET') {
@@ -311,7 +311,7 @@ window.WardatBackend = (() => {
 
     // الطلبات ونقطة البيع
     if (p === '/api/orders' && method === 'GET') {const search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u);let q=c.from('v_orders').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,to);if(search)q=q.or(`order_no.ilike.%${search}%,customer_name.ilike.%${search}%,phone.ilike.%${search}%`);const result=await q;return pagedResult(unwrap(result),result.count,page,pageSize);}
-    if (p === '/api/orders' && method === 'POST') return await rpc('create_pos_order', { p_payload: body });
+    if (p === '/api/orders' && method === 'POST') return await rpc('create_pos_order_v21', { p_payload: body });
     const orderMatch = p.match(/^\/api\/orders\/([^/]+)$/);
     if (orderMatch && method === 'PATCH') return await rpc('update_order_status', { p_order_id: orderMatch[1], p_status: body.status, p_reason: body.reason || '' });
 
