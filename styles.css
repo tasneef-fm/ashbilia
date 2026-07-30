@@ -92,3 +92,34 @@
 
 .booking-editor-form{gap:16px}.booking-form-section{border:1px solid var(--line);border-radius:18px;padding:16px;background:#fffaf3}.booking-form-section .panel-head{margin-bottom:14px}.booking-requests-wrap{background:#fff;border-radius:14px}.booking-requests-table select,.booking-requests-table input{min-width:110px}.booking-requests-table .request-product{min-width:260px}.request-inventory-fields{display:grid;gap:5px}.request-inventory-fields small{color:var(--gold-dark);font-size:11px}.booking-request-summary{display:flex;justify-content:flex-end;gap:24px;flex-wrap:wrap;margin-top:12px;padding:12px 14px;background:#fff;border:1px solid var(--line);border-radius:12px}.booking-request-summary b{color:var(--gold-dark)}
 @media(max-width:800px){.booking-requests-table{min-width:820px}.booking-form-section{padding:12px}.booking-form-section .panel-head{align-items:flex-start;flex-direction:column}.booking-form-section .panel-head .actions{width:100%}.booking-form-section .panel-head .actions .btn{flex:1}}
+
+
+/* V22 — كشف التحضير السريع */
+.attendance-legend{display:flex;align-items:center;gap:16px;flex-wrap:wrap;margin:0 0 14px;padding:12px 14px;border:1px solid var(--line);border-radius:14px;background:#fffaf2}
+.attendance-legend span{display:inline-flex;align-items:center;gap:7px;font-weight:800}
+.attendance-legend small{color:var(--muted)}
+.attendance-legend-key{width:30px;height:30px;border-radius:9px;display:inline-flex;align-items:center;justify-content:center;color:#fff}
+.attendance-legend-key.present{background:#23854a}
+.attendance-legend-key.absent{background:#bd3434}
+.attendance-quick-table th,.attendance-quick-table td{text-align:center;vertical-align:middle}
+.attendance-quick-table td:first-child{text-align:right}
+.attendance-mark-group{display:flex;justify-content:center;gap:9px}
+.attendance-mark-btn{width:44px;height:40px;border:2px solid var(--line);border-radius:12px;background:#fff;color:var(--ink);font-size:17px;font-weight:900;cursor:pointer;transition:.18s}
+.attendance-mark-btn:hover{transform:translateY(-1px)}
+.attendance-mark-btn:disabled{opacity:.5;cursor:wait}
+.attendance-mark-btn.present{border-color:#88c69e;color:#237844}
+.attendance-mark-btn.absent{border-color:#e0a1a1;color:#a52e2e}
+.attendance-mark-btn.present.active{background:#23854a;border-color:#23854a;color:#fff;box-shadow:0 5px 14px rgba(35,133,74,.23)}
+.attendance-mark-btn.absent.active{background:#bd3434;border-color:#bd3434;color:#fff;box-shadow:0 5px 14px rgba(189,52,52,.22)}
+.attendance-result{display:inline-flex;min-width:84px;justify-content:center;padding:7px 12px;border-radius:999px;font-weight:900}
+.attendance-result.present{background:#dff3e5;color:#176b38;border:1px solid #9ed2ae}
+.attendance-result.absent{background:#f9dddd;color:#9f2727;border:1px solid #e6a0a0}
+.attendance-result.leave{background:#fff0c9;color:#8a6410;border:1px solid #e6ca7d}
+.attendance-result.unmarked{background:#efefef;color:#666;border:1px solid #d5d5d5}
+.attendance-row-present{background:#f6fff8!important}
+.attendance-row-absent{background:#fff7f7!important}
+.attendance-row-leave{background:#fffdf5!important}
+@media(max-width:700px){
+ .attendance-mark-btn{width:40px;height:38px}
+ .attendance-result{min-width:70px;padding:6px 9px}
+}

@@ -376,6 +376,12 @@ window.WardatBackend = (() => {
     if (p === '/api/hr/assignments' && method === 'POST') return await rpc('save_shift_assignment',{p_payload:body});
     if (p === '/api/hr/salary-profile' && method === 'POST') return await rpc('save_salary_profile',{p_payload:body});
     if (p === '/api/attendance/manual' && method === 'POST') return await rpc('save_manual_attendance',{p_payload:body});
+    if (p === '/api/attendance/quick' && method === 'POST')
+      return await rpc('quick_mark_attendance_v22',{
+        p_employee_id:body.employee_id,
+        p_work_date:body.work_date,
+        p_status:body.status
+      });
     if (p === '/api/attendance/state' && method === 'GET') return await rpc('get_my_attendance_state');
     if (p === '/api/attendance/clock' && method === 'POST') return await rpc('attendance_clock',{p_action:body.action,p_lat:body.lat??null,p_lng:body.lng??null,p_accuracy:body.accuracy??null,p_device:body.device||null,p_photo:body.photo||null,p_qr_token:body.qr_token||null});
     if (p === '/api/attendance/dashboard' && method === 'GET') return await rpc('get_attendance_dashboard',{p_date:u.searchParams.get('date')||null,p_branch:u.searchParams.get('branch')||null,p_department:u.searchParams.get('department')||null,p_status:u.searchParams.get('status')||null});

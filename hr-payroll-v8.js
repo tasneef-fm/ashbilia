@@ -26,18 +26,232 @@ function filtersFromUrl(page){try{const u=new URL(location.href);if(u.searchPara
 function getGeo(){return new Promise((resolve,reject)=>{if(!navigator.geolocation)return reject(new Error('المتصفح لا يدعم تحديد الموقع'));navigator.geolocation.getCurrentPosition(p=>resolve({lat:p.coords.latitude,lng:p.coords.longitude,accuracy:p.coords.accuracy}),e=>reject(new Error(e.code===1?'يجب السماح بالوصول إلى الموقع':'تعذر تحديد الموقع')), {enableHighAccuracy:true,timeout:15000,maximumAge:0});});}
 function deviceFingerprint(){let v=localStorage.getItem('wardat:device-id');if(!v){v=crypto.randomUUID();localStorage.setItem('wardat:device-id',v)}return `${navigator.platform||''}|${navigator.userAgent.slice(0,100)}|${v}`;}
 
+function attendanceQuickState(row={}){
+ const status=String(row.status||'');
+ if(row.attendance_id&&status==='absent')return'absent';
+ if(status==='leave')return'leave';
+ if(row.attendance_id&&['present','late','early_leave','missing_checkout'].includes(status))return'present';
+ return'unmarked';
+}
+function attendanceQuickResult(stateKey){
+ if(stateKey==='present')return'<span class="attendance-result present">حضور</span>';
+ if(stateKey==='absent')return'<span class="attendance-result absent">غياب</span>';
+ if(stateKey==='leave')return'<span class="attendance-result leave">إجازة</span>';
+ return'<span class="attendance-result unmarked">لم يُحضّر</span>';
+}
+function attendanceQuickRows(rows=[],workDate=''){
+ if(!rows.length)return'<tr><td colspan="6"><div class="empty">لا يوجد موظفون مطابقون</div></td></tr>';
+ return rows.map(x=>{
+  const stateKey=attendanceQuickState(x);
+  return`<tr data-attendance-row data-employee-id="${x.employee_id}" data-state="${stateKey}">
+   <td><b>${escapeHtml(x.employee_name)}</b><small>${escapeHtml(x.employee_no||'')}</small></td>
+   <td>${escapeHtml(x.department||'—')}</td>
+   <td>${escapeHtml(x.shift_name||'بدون وردية')}</td>
+   <td>${escapeHtml(workDate)}</td>
+   <td><div class="attendance-mark-group">
+    <button type="button" class="attendance-mark-btn present ${stateKey==='present'?'active':''}" data-attendance-mark="present" title="حاضر">ح</button>
+    <button type="button" class="attendance-mark-btn absent ${stateKey==='absent'?'active':''}" data-attendance-mark="absent" title="غياب">غ</button>
+   </div></td>
+   <td data-attendance-result>${attendanceQuickResult(stateKey)}</td>
+  </tr>`;
+ }).join('');
+}
+function refreshAttendanceQuickMetrics(){
+ const rows=$$('[data-attendance-row]');
+ const counts={present:0,absent:0,leave:0,unmarked:0};
+ rows.forEach(row=>{const key=row.dataset.state||'unmarked';counts[key]=(counts[key]||0)+1;});
+ const set=(id,value)=>{const el=$(id);if(el)el.textContent=number(value);};
+ set('#attendanceMetricTotal',rows.length);
+ set('#attendanceMetricPresent',counts.present);
+ set('#attendanceMetricAbsent',counts.absent);
+ set('#attendanceMetricLeave',counts.leave);
+ set('#attendanceMetricUnmarked',counts.unmarked);
+ const rate=rows.length?counts.present/rows.length*100:0;
+ const rateEl=$('#attendanceMetricRate');
+ if(rateEl)rateEl.textContent=`${number(rate)}%`;
+}
+function applyAttendanceQuickRow(row,stateKey){
+ row.dataset.state=stateKey;
+ row.classList.remove('attendance-row-present','attendance-row-absent','attendance-row-unmarked','attendance-row-leave');
+ row.classList.add(`attendance-row-${stateKey}`);
+ $$('[data-attendance-mark]',row).forEach(btn=>{
+  btn.classList.toggle('active',btn.dataset.attendanceMark===stateKey);
+ });
+ const result=$('[data-attendance-result]',row);
+ if(result)result.innerHTML=attendanceQuickResult(stateKey);
+ refreshAttendanceQuickMetrics();
+}
+function bindAttendanceQuickActions(workDate){
+ $$('[data-attendance-row]').forEach(row=>{
+  applyAttendanceQuickRow(row,row.dataset.state||'unmarked');
+ });
+ $$('[data-attendance-mark]').forEach(btn=>{
+  btn.onclick=async()=>{
+   const row=btn.closest('[data-attendance-row]');
+   const status=btn.dataset.attendanceMark;
+   const previous=row.dataset.state||'unmarked';
+   if(previous===status)return;
+   const employeeId=row.dataset.employeeId;
+   const buttons=$$('[data-attendance-mark]',row);
+   buttons.forEach(x=>x.disabled=true);
+   try{
+    await api('/api/attendance/quick',{
+     method:'POST',
+     body:{
+      employee_id:employeeId,
+      work_date:workDate,
+      status
+     }
+    });
+    applyAttendanceQuickRow(row,status);
+    toast(status==='present'?'تم تسجيل الحضور':'تم تسجيل الغياب');
+   }catch(error){
+    applyAttendanceQuickRow(row,previous);
+    toast(error.message,'error');
+   }finally{
+    buttons.forEach(x=>x.disabled=false);
+   }
+  };
+ });
+}
 async function renderAttendance(filters={}){
  const saved={...getSavedFilters('attendance'),...filtersFromUrl('attendance'),...filters};
+ const workDate=saved.date||hrToday();
  const stateData=await api('/api/attendance/state');
  const admin=can('attendance.view')&&PORTAL_MODE==='admin';
- const dash=admin?await api(`/api/attendance/dashboard?${hrQuery({date:saved.date||hrToday(),branch:saved.branch||'',department:saved.department||'',status:saved.status||''})}`):null;
+ const dash=admin?await api(`/api/attendance/dashboard?${hrQuery({
+  date:workDate,
+  branch:saved.branch||'',
+  department:saved.department||'',
+  status:''
+ })}`):null;
  const rec=stateData.record||null,assignment=stateData.assignment||{};
- const clockCard=`<section class="panel attendance-clock"><div class="panel-head"><h3>تسجيل اليوم</h3><span class="status ${rec?.check_in_at?'green':'amber'}">${rec?.check_in_at?'تم تسجيل الحضور':'لم يسجل الحضور'}</span></div><div class="clock-time" id="liveClock"></div><div class="list"><div class="list-item"><span>الوردية</span><b>${escapeHtml(assignment.shift_name||'غير محددة')}</b></div><div class="list-item"><span>الموقع</span><b>${escapeHtml(assignment.location_name||'غير محدد')}</b></div><div class="list-item"><span>الحضور</span><b>${dt(rec?.check_in_at)}</b></div><div class="list-item"><span>الانصراف</span><b>${dt(rec?.check_out_at)}</b></div></div><div class="clock-actions">${!rec?.check_in_at?'<button class="btn btn-primary" data-clock="check_in">تسجيل الحضور</button>':''}${rec?.check_in_at&&!rec?.check_out_at?'<button class="btn btn-danger" data-clock="check_out">تسجيل الانصراف</button><button class="btn btn-outline" data-clock="break_start">بداية الاستراحة</button><button class="btn btn-outline" data-clock="break_end">نهاية الاستراحة</button><button class="mini-btn" data-clock="temp_out">خروج مؤقت</button><button class="mini-btn" data-clock="temp_return">عودة</button>':''}</div><small class="geo-note">يتم التحقق من الموقع الجغرافي عند التسجيل حسب إعداد الموقع.</small></section>`;
- let adminHtml='';if(admin){const s=dash.summary||{};adminHtml=`${smartFilterBar('attendance',[{key:'date',label:'التاريخ',type:'date'},{key:'branch',label:'الفرع'},{key:'department',label:'القسم'},{key:'status',label:'الحالة',type:'select',options:[{value:'present',label:'حاضر'},{value:'late',label:'متأخر'},{value:'absent',label:'غائب'},{value:'leave',label:'إجازة'},{value:'missing_checkout',label:'لم يسجل انصراف'}]}],saved,dash.rows?.length||0)}<div class="toolbar"><div>${can('attendance.manual')?'<button class="btn btn-primary" id="hrSetupBtn">إعداد المواقع والورديات</button> <button class="btn btn-outline" id="manualAttendanceBtn">تسجيل يدوي</button>':''}</div></div><div class="metrics">${metricHtml('إجمالي الموظفين',s.total||0)}${metricHtml('الحاضرون',s.present||0)}${metricHtml('المتأخرون',s.late||0)}${metricHtml('الغائبون',s.absent||0)}${metricHtml('إجازة',s.leave||0)}${metricHtml('لم يسجلوا انصراف',s.missing_checkout||0)}${metricHtml('الأوفر تايم',number((s.overtime_minutes||0)/60)+' ساعة')}${metricHtml('نسبة الحضور',number(s.attendance_rate||0)+'%')}</div><section class="panel"><div class="panel-head"><h3>التحضير اليومي</h3><button class="btn btn-outline" id="exportAttendance">تصدير النتائج</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>الموظف</th><th>القسم</th><th>الوردية</th><th>الحالة</th><th>الحضور</th><th>الانصراف</th><th>ساعات العمل</th><th>التأخير</th><th>الأوفر تايم</th></tr></thead><tbody>${(dash.rows||[]).map(x=>`<tr><td><b>${escapeHtml(x.employee_name)}</b><small>${escapeHtml(x.employee_no||'')}</small></td><td>${escapeHtml(x.department||'—')}</td><td>${escapeHtml(x.shift_name||'—')}</td><td>${statusBadge(x.status)}</td><td>${dt(x.check_in_at)}</td><td>${dt(x.check_out_at)}</td><td>${number((x.work_minutes||0)/60)}</td><td>${number(x.late_minutes||0)} د</td><td>${number((x.overtime_minutes||0)/60)} س</td></tr>`).join('')}</tbody></table></div></section>`;}
+ const clockCard=`<section class="panel attendance-clock">
+  <div class="panel-head"><h3>تسجيل اليوم</h3><span class="status ${rec?.check_in_at?'green':'amber'}">${rec?.check_in_at?'تم تسجيل الحضور':'لم يسجل الحضور'}</span></div>
+  <div class="clock-time" id="liveClock"></div>
+  <div class="list">
+   <div class="list-item"><span>الوردية</span><b>${escapeHtml(assignment.shift_name||'غير محددة')}</b></div>
+   <div class="list-item"><span>الموقع</span><b>${escapeHtml(assignment.location_name||'غير محدد')}</b></div>
+   <div class="list-item"><span>الحضور</span><b>${dt(rec?.check_in_at)}</b></div>
+   <div class="list-item"><span>الانصراف</span><b>${dt(rec?.check_out_at)}</b></div>
+  </div>
+  <div class="clock-actions">
+   ${!rec?.check_in_at?'<button class="btn btn-primary" data-clock="check_in">تسجيل الحضور</button>':''}
+   ${rec?.check_in_at&&!rec?.check_out_at?'<button class="btn btn-danger" data-clock="check_out">تسجيل الانصراف</button><button class="btn btn-outline" data-clock="break_start">بداية الاستراحة</button><button class="btn btn-outline" data-clock="break_end">نهاية الاستراحة</button><button class="mini-btn" data-clock="temp_out">خروج مؤقت</button><button class="mini-btn" data-clock="temp_return">عودة</button>':''}
+  </div>
+  <small class="geo-note">يتم التحقق من الموقع الجغرافي عند التسجيل حسب إعداد الموقع.</small>
+ </section>`;
+ let adminHtml='';
+ if(admin){
+  const rows=dash.rows||[];
+  const initial={
+   present:rows.filter(x=>attendanceQuickState(x)==='present').length,
+   absent:rows.filter(x=>attendanceQuickState(x)==='absent').length,
+   leave:rows.filter(x=>attendanceQuickState(x)==='leave').length,
+   unmarked:rows.filter(x=>attendanceQuickState(x)==='unmarked').length
+  };
+  const rate=rows.length?initial.present/rows.length*100:0;
+  adminHtml=`${smartFilterBar('attendance',[
+   {key:'date',label:'التاريخ',type:'date'},
+   {key:'branch',label:'الفرع'},
+   {key:'department',label:'القسم'}
+  ],saved,rows.length)}
+  <div class="toolbar">
+   <input class="search" id="attendanceEmployeeSearch" placeholder="ابحث باسم الموظف أو الكود">
+   <div>
+    ${can('attendance.manual')?'<button class="btn btn-primary" id="hrSetupBtn">إعداد المواقع والورديات</button> <button class="btn btn-outline" id="manualAttendanceBtn">تسجيل يدوي مفصل</button>':''}
+   </div>
+  </div>
+  <div class="attendance-legend">
+   <span><b class="attendance-legend-key present">ح</b> حاضر</span>
+   <span><b class="attendance-legend-key absent">غ</b> غياب</span>
+   <small>اختر التاريخ ثم اضغط ح أو غ أمام اسم العامل.</small>
+  </div>
+  <div class="metrics">
+   <div class="metric"><span>إجمالي الموظفين</span><b id="attendanceMetricTotal">${number(rows.length)}</b></div>
+   <div class="metric"><span>الحاضرون</span><b id="attendanceMetricPresent">${number(initial.present)}</b></div>
+   <div class="metric"><span>الغائبون</span><b id="attendanceMetricAbsent">${number(initial.absent)}</b></div>
+   <div class="metric"><span>إجازة</span><b id="attendanceMetricLeave">${number(initial.leave)}</b></div>
+   <div class="metric"><span>لم يُحضّروا</span><b id="attendanceMetricUnmarked">${number(initial.unmarked)}</b></div>
+   <div class="metric"><span>نسبة الحضور</span><b id="attendanceMetricRate">${number(rate)}%</b></div>
+  </div>
+  <section class="panel">
+   <div class="panel-head">
+    <div><h3>كشف التحضير اليومي</h3><small>${escapeHtml(workDate)} · ح = حاضر، غ = غياب</small></div>
+    <button class="btn btn-outline" id="exportAttendance">تصدير النتائج</button>
+   </div>
+   <div class="table-wrap">
+    <table class="data-table attendance-quick-table">
+     <thead><tr><th>الموظف</th><th>القسم</th><th>الوردية</th><th>التاريخ</th><th>التحضير</th><th>النتيجة</th></tr></thead>
+     <tbody id="attendanceQuickRows">${attendanceQuickRows(rows,workDate)}</tbody>
+    </table>
+   </div>
+  </section>`;
+ }
  $('#content').innerHTML=`<div class="attendance-layout">${clockCard}<div class="attendance-admin">${adminHtml}</div></div>`;
- const tick=()=>{const el=$('#liveClock');if(el)el.textContent=new Intl.DateTimeFormat('ar-SA',{timeStyle:'medium',dateStyle:'full',timeZone:'Asia/Riyadh'}).format(new Date())};tick();clearInterval(window.__wardatClock);window.__wardatClock=setInterval(tick,1000);
- $$('[data-clock]').forEach(b=>b.onclick=async()=>{b.disabled=true;try{const g=await getGeo();await api('/api/attendance/clock',{method:'POST',body:{action:b.dataset.clock,lat:g.lat,lng:g.lng,accuracy:g.accuracy,device:deviceFingerprint()}});toast('تم تسجيل العملية');await renderAttendance(saved);}catch(e){toast(e.message,'error')}finally{b.disabled=false}});
- if(admin){bindSmartFilters('attendance',renderAttendance);$('#exportAttendance').onclick=()=>{if(!guard('attendance.export'))return;downloadCsv(dash.rows||[],`attendance-${saved.date||hrToday()}.csv`)};$('#hrSetupBtn')?.addEventListener('click',openHRSetup);$('#manualAttendanceBtn')?.addEventListener('click',openManualAttendance)}
+ const tick=()=>{
+  const el=$('#liveClock');
+  if(el)el.textContent=new Intl.DateTimeFormat('ar-SA',{
+   timeStyle:'medium',
+   dateStyle:'full',
+   timeZone:'Asia/Riyadh'
+  }).format(new Date());
+ };
+ tick();
+ clearInterval(window.__wardatClock);
+ window.__wardatClock=setInterval(tick,1000);
+ $$('[data-clock]').forEach(b=>b.onclick=async()=>{
+  b.disabled=true;
+  try{
+   const g=await getGeo();
+   await api('/api/attendance/clock',{
+    method:'POST',
+    body:{
+     action:b.dataset.clock,
+     lat:g.lat,
+     lng:g.lng,
+     accuracy:g.accuracy,
+     device:deviceFingerprint()
+    }
+   });
+   toast('تم تسجيل العملية');
+   await renderAttendance(saved);
+  }catch(e){
+   toast(e.message,'error');
+  }finally{
+   b.disabled=false;
+  }
+ });
+ if(admin){
+  bindSmartFilters('attendance',renderAttendance);
+  bindAttendanceQuickActions(workDate);
+  $('#attendanceEmployeeSearch').oninput=e=>{
+   const q=normalizeSmartText(e.target.value);
+   $$('[data-attendance-row]').forEach(row=>{
+    const text=normalizeSmartText(row.textContent);
+    row.hidden=!!q&&!text.includes(q);
+   });
+  };
+  $('#exportAttendance').onclick=()=>{
+   if(!guard('attendance.export'))return;
+   const exportRows=(dash.rows||[]).map(x=>({
+    employee_no:x.employee_no||'',
+    employee_name:x.employee_name,
+    department:x.department||'',
+    shift:x.shift_name||'',
+    date:workDate,
+    status:{
+     present:'حضور',
+     absent:'غياب',
+     leave:'إجازة',
+     unmarked:'لم يحضر'
+    }[attendanceQuickState(x)]
+   }));
+   downloadCsv(exportRows,`attendance-${workDate}.csv`);
+  };
+  $('#hrSetupBtn')?.addEventListener('click',openHRSetup);
+  $('#manualAttendanceBtn')?.addEventListener('click',openManualAttendance);
+ }
 }
 
 async function renderLeaves(filters={}){
