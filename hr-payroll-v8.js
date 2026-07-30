@@ -114,6 +114,72 @@ function bindAttendanceQuickActions(workDate){
   };
  });
 }
+
+function attendanceMonthValue(dateValue=''){
+ const d=String(dateValue||hrToday()).slice(0,7);
+ return /^\d{4}-\d{2}$/.test(d)?d:hrToday().slice(0,7);
+}
+function monthlyAttendanceSymbol(status){
+ if(status==='present')return'<span class="month-attendance-cell present" title="حضور">ح</span>';
+ if(status==='absent')return'<span class="month-attendance-cell absent" title="غياب">غ</span>';
+ if(status==='leave')return'<span class="month-attendance-cell leave" title="إجازة">إ</span>';
+ if(status==='inactive')return'<span class="month-attendance-cell inactive" title="خارج مدة الخدمة">—</span>';
+ return'<span class="month-attendance-cell unmarked" title="لم يتم التحضير">•</span>';
+}
+function monthlyAttendanceTable(data={}){
+ const rows=data.rows||[];
+ const days=Number(data.days_in_month||30);
+ const dayHeaders=Array.from({length:days},(_,i)=>`<th class="month-day-head">${i+1}</th>`).join('');
+ if(!rows.length){
+  return`<div class="empty">لا توجد بيانات موظفين لهذا الشهر.</div>`;
+ }
+ return`<div class="monthly-attendance-scroll">
+  <table class="data-table monthly-attendance-table">
+   <thead>
+    <tr>
+     <th class="monthly-sticky-name">الموظف</th>
+     ${dayHeaders}
+     <th class="month-total-head present">ح</th>
+     <th class="month-total-head absent">غ</th>
+     <th class="month-total-head leave">إ</th>
+     <th class="month-total-head unmarked">غير محضر</th>
+    </tr>
+   </thead>
+   <tbody id="monthlyAttendanceRows">
+    ${rows.map(row=>`<tr data-month-employee-row>
+     <td class="monthly-sticky-name">
+      <b>${escapeHtml(row.employee_name)}</b>
+      <small>${escapeHtml(row.employee_no||'')} ${row.department?`· ${escapeHtml(row.department)}`:''}</small>
+     </td>
+     ${Array.from({length:days},(_,i)=>`<td>${monthlyAttendanceSymbol(row.days?.[String(i+1)]||'unmarked')}</td>`).join('')}
+     <td><b class="month-total present">${number(row.present_count||0)}</b></td>
+     <td><b class="month-total absent">${number(row.absent_count||0)}</b></td>
+     <td><b class="month-total leave">${number(row.leave_count||0)}</b></td>
+     <td><b class="month-total unmarked">${number(row.unmarked_count||0)}</b></td>
+    </tr>`).join('')}
+   </tbody>
+  </table>
+ </div>`;
+}
+async function loadMonthlyAttendance(monthValue,filters={}){
+ const target=$('#monthlyAttendanceContainer');
+ if(!target)return null;
+ target.innerHTML='<div class="empty">جاري تحميل جدول الشهر...</div>';
+ try{
+  const data=await api(`/api/attendance/monthly?${hrQuery({
+   month:`${monthValue}-01`,
+   branch:filters.branch||'',
+   department:filters.department||''
+  })}`);
+  target.innerHTML=monthlyAttendanceTable(data);
+  state.cache.monthlyAttendance=data;
+  return data;
+ }catch(error){
+  target.innerHTML=`<div class="empty">${escapeHtml(error.message)}</div>`;
+  throw error;
+ }
+}
+
 async function renderAttendance(filters={}){
  const saved={...getSavedFilters('attendance'),...filtersFromUrl('attendance'),...filters};
  const workDate=saved.date||hrToday();
@@ -125,6 +191,7 @@ async function renderAttendance(filters={}){
   department:saved.department||'',
   status:''
  })}`):null;
+ const monthValue=attendanceMonthValue(saved.month||workDate);
  const rec=stateData.record||null,assignment=stateData.assignment||{};
  const clockCard=`<section class="panel attendance-clock">
   <div class="panel-head"><h3>تسجيل اليوم</h3><span class="status ${rec?.check_in_at?'green':'amber'}">${rec?.check_in_at?'تم تسجيل الحضور':'لم يسجل الحضور'}</span></div>
@@ -153,6 +220,7 @@ async function renderAttendance(filters={}){
   const rate=rows.length?initial.present/rows.length*100:0;
   adminHtml=`${smartFilterBar('attendance',[
    {key:'date',label:'التاريخ',type:'date'},
+   {key:'month',label:'شهر الجدول',type:'month'},
    {key:'branch',label:'الفرع'},
    {key:'department',label:'القسم'}
   ],saved,rows.length)}
@@ -186,6 +254,22 @@ async function renderAttendance(filters={}){
      <tbody id="attendanceQuickRows">${attendanceQuickRows(rows,workDate)}</tbody>
     </table>
    </div>
+  </section>
+  <section class="panel monthly-attendance-panel">
+   <div class="panel-head">
+    <div>
+     <h3>جدول الحضور والغياب الشهري</h3>
+     <small>${escapeHtml(monthValue)} · ح حضور، غ غياب، إ إجازة</small>
+    </div>
+    <button class="btn btn-outline" id="exportMonthlyAttendance">تصدير الشهر</button>
+   </div>
+   <div class="monthly-attendance-legend">
+    <span>${monthlyAttendanceSymbol('present')} حضور</span>
+    <span>${monthlyAttendanceSymbol('absent')} غياب</span>
+    <span>${monthlyAttendanceSymbol('leave')} إجازة</span>
+    <span>${monthlyAttendanceSymbol('unmarked')} لم يُحضّر</span>
+   </div>
+   <div id="monthlyAttendanceContainer"><div class="empty">جاري تحميل جدول الشهر...</div></div>
   </section>`;
  }
  $('#content').innerHTML=`<div class="attendance-layout">${clockCard}<div class="attendance-admin">${adminHtml}</div></div>`;
@@ -225,9 +309,10 @@ async function renderAttendance(filters={}){
  if(admin){
   bindSmartFilters('attendance',renderAttendance);
   bindAttendanceQuickActions(workDate);
+  await loadMonthlyAttendance(monthValue,saved);
   $('#attendanceEmployeeSearch').oninput=e=>{
    const q=normalizeSmartText(e.target.value);
-   $$('[data-attendance-row]').forEach(row=>{
+   $$('[data-attendance-row], [data-month-employee-row]').forEach(row=>{
     const text=normalizeSmartText(row.textContent);
     row.hidden=!!q&&!text.includes(q);
    });
@@ -249,6 +334,34 @@ async function renderAttendance(filters={}){
    }));
    downloadCsv(exportRows,`attendance-${workDate}.csv`);
   };
+  $('#exportMonthlyAttendance')?.addEventListener('click',()=>{
+   if(!guard('attendance.export'))return;
+   const data=state.cache.monthlyAttendance||{};
+   const days=Number(data.days_in_month||0);
+   const rows=(data.rows||[]).map(row=>{
+    const out={
+     employee_no:row.employee_no||'',
+     employee_name:row.employee_name,
+     department:row.department||''
+    };
+    for(let day=1;day<=days;day++){
+     const status=row.days?.[String(day)]||'unmarked';
+     out[`day_${day}`]={
+      present:'ح',
+      absent:'غ',
+      leave:'إ',
+      inactive:'—',
+      unmarked:''
+     }[status]??'';
+    }
+    out.present_count=row.present_count||0;
+    out.absent_count=row.absent_count||0;
+    out.leave_count=row.leave_count||0;
+    out.unmarked_count=row.unmarked_count||0;
+    return out;
+   });
+   downloadCsv(rows,`attendance-month-${monthValue}.csv`);
+  });
   $('#hrSetupBtn')?.addEventListener('click',openHRSetup);
   $('#manualAttendanceBtn')?.addEventListener('click',openManualAttendance);
  }

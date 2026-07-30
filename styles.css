@@ -123,3 +123,34 @@
  .attendance-mark-btn{width:40px;height:38px}
  .attendance-result{min-width:70px;padding:6px 9px}
 }
+
+
+/* V23 — جدول الحضور الشهري */
+.monthly-attendance-panel{margin-top:18px}
+.monthly-attendance-legend{display:flex;gap:14px;align-items:center;flex-wrap:wrap;margin:0 0 12px;padding:10px 12px;border:1px solid var(--line);border-radius:13px;background:#fffaf2}
+.monthly-attendance-legend span{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:800}
+.monthly-attendance-scroll{width:100%;overflow-x:auto;border:1px solid var(--line);border-radius:14px;background:#fff}
+.monthly-attendance-table{min-width:1450px;margin:0}
+.monthly-attendance-table th,.monthly-attendance-table td{text-align:center;padding:6px 5px;white-space:nowrap}
+.monthly-attendance-table .monthly-sticky-name{position:sticky;right:0;z-index:2;min-width:190px;text-align:right;background:#fff;border-left:2px solid var(--line)}
+.monthly-attendance-table thead .monthly-sticky-name{z-index:4;background:var(--ink);color:#fff}
+.monthly-attendance-table tbody tr:nth-child(even) .monthly-sticky-name{background:#fffaf3}
+.monthly-attendance-table .monthly-sticky-name small{display:block;color:var(--muted);font-size:10px;margin-top:3px}
+.month-day-head{min-width:36px}
+.month-attendance-cell{width:28px;height:28px;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:900;font-size:13px}
+.month-attendance-cell.present{background:#23854a;color:#fff}
+.month-attendance-cell.absent{background:#bd3434;color:#fff}
+.month-attendance-cell.leave{background:#d9a927;color:#fff}
+.month-attendance-cell.unmarked{background:#ececec;color:#777}
+.month-attendance-cell.inactive{background:transparent;color:#bbb}
+.month-total-head{min-width:54px}
+.month-total-head.present,.month-total.present{color:#18703b}
+.month-total-head.absent,.month-total.absent{color:#aa2929}
+.month-total-head.leave,.month-total.leave{color:#946c09}
+.month-total-head.unmarked,.month-total.unmarked{color:#666}
+.month-total{display:inline-flex;min-width:34px;justify-content:center;padding:5px 8px;border-radius:999px;background:#f3f3f3}
+@media(max-width:700px){
+ .monthly-attendance-table{min-width:1320px}
+ .monthly-attendance-table .monthly-sticky-name{min-width:150px}
+ .month-attendance-cell{width:25px;height:25px;font-size:12px}
+}

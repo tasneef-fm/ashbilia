@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.07.30-v22-quick-attendance-grid",
+  "version": "2026.07.30-v23-monthly-attendance-table",
   "generated": "2026-07-21",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 113,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-07-30T14:29:00+03:00",
+  "updated_at": "2026-07-30T14:40:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -99,5 +99,8 @@
   "service_price_edit_in_pos": true,
   "employee_audit_logs_fix": true,
   "quick_attendance_grid": true,
-  "attendance_present_absent_buttons": true
+  "attendance_present_absent_buttons": true,
+  "monthly_attendance_table": true,
+  "monthly_attendance_export": true,
+  "monthly_attendance_totals": true
 }
