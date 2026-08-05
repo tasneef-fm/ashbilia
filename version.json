@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.08.05-v25-excel-workflow-system",
+  "version": "2026.08.05-v26-excel-data-imported",
   "generated": "2026-07-21",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 113,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-08-05T16:30:00+03:00",
+  "updated_at": "2026-08-05T16:39:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -116,5 +116,12 @@
   "driver_delivery_sheet": true,
   "booking_auto_balance": true,
   "purchase_auto_balance": true,
-  "inventory_excel_report": true
+  "inventory_excel_report": true,
+  "excel_data_seed": true,
+  "imported_bookings": 43,
+  "imported_custodies": 4,
+  "imported_daily_sales_days": 4,
+  "imported_driver_logs": 8,
+  "imported_employees": 22,
+  "imported_flower_products": 14
 }
