@@ -154,3 +154,52 @@
  .monthly-attendance-table .monthly-sticky-name{min-width:150px}
  .month-attendance-cell{width:25px;height:25px;font-size:12px}
 }
+
+/* V24 — ربط مصادر الرواتب */
+.payroll-source-note{
+ margin:0 0 14px;
+ padding:12px 14px;
+ border:1px solid #dfc17f;
+ border-radius:14px;
+ background:#fff8e8;
+ color:#5c4523;
+ font-weight:700;
+ line-height:1.8
+}
+.payroll-linked-table{min-width:1900px}
+.payroll-linked-table th,.payroll-linked-table td{
+ text-align:center;
+ white-space:nowrap
+}
+.payroll-linked-table td:first-child{text-align:right}
+
+/* V25 — نظام المحل المطابق للإكسلات */
+.shop-system-head{
+ display:flex;justify-content:space-between;align-items:flex-end;
+ gap:18px;flex-wrap:wrap;margin-bottom:14px;padding:18px;
+ border-radius:18px;background:linear-gradient(135deg,#2f261f,#4a392b);
+ color:#fff
+}
+.shop-system-head h2{margin:0 0 6px;font-size:24px}
+.shop-system-head p{margin:0;color:#eadfcf}
+.shop-month-actions{display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap}
+.shop-month-actions label{color:#fff;font-size:12px}
+.shop-month-actions input{display:block;margin-top:5px;padding:10px;border-radius:10px;border:1px solid #d8bd82}
+.shop-tabs{
+ display:flex;gap:8px;overflow-x:auto;padding:5px 0 13px;margin-bottom:10px
+}
+.shop-tab{
+ border:1px solid var(--line);background:#fff;padding:11px 16px;
+ border-radius:12px;white-space:nowrap;font-weight:800;cursor:pointer
+}
+.shop-tab.active{background:var(--gold);border-color:var(--gold);color:#2f261f}
+.negative-number{color:#b82d2d;font-weight:900}
+.shop-system-head .btn{background:#fff;color:#2f261f;border-color:#e4ca94}
+#shopTabArea .data-table{min-width:1050px}
+#shopTabArea .metric-card strong{font-size:22px}
+@media(max-width:700px){
+ .shop-system-head{align-items:stretch}
+ .shop-month-actions{width:100%}
+ .shop-month-actions label{flex:1}
+ .shop-month-actions input{width:100%}
+}

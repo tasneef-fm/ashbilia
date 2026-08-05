@@ -260,6 +260,36 @@ window.WardatBackend = (() => {
 
     // لوحة الإدارة
     if (p === '/api/dashboard' && method === 'GET') return await rpc('get_dashboard');
+    if (p === '/api/shop-system' && method === 'GET')
+      return await rpc('get_shop_excel_system_v25',{
+        p_month:u.searchParams.get('month')||null
+      });
+    if (p === '/api/shop-system/custodies' && method === 'POST')
+      return await rpc('upsert_cash_custody_v25',{p_id:null,p_payload:body});
+    const shopCustodyMatch=p.match(/^\/api\/shop-system\/custodies\/([^/]+)$/);
+    if(shopCustodyMatch&&method==='PUT')
+      return await rpc('upsert_cash_custody_v25',{p_id:shopCustodyMatch[1],p_payload:body});
+    if(shopCustodyMatch&&method==='DELETE')
+      return await rpc('delete_cash_custody_v25',{p_id:shopCustodyMatch[1],p_reason:body.reason||''});
+    if (p === '/api/shop-system/deliveries' && method === 'POST')
+      return await rpc('upsert_driver_delivery_log_v25',{p_id:null,p_payload:body});
+    const shopDeliveryMatch=p.match(/^\/api\/shop-system\/deliveries\/([^/]+)$/);
+    if(shopDeliveryMatch&&method==='PUT')
+      return await rpc('upsert_driver_delivery_log_v25',{p_id:shopDeliveryMatch[1],p_payload:body});
+    if(shopDeliveryMatch&&method==='DELETE')
+      return await rpc('delete_driver_delivery_log_v25',{p_id:shopDeliveryMatch[1],p_reason:body.reason||''});
+    if (p === '/api/shop-system/booking-payment' && method === 'POST')
+      return await rpc('register_booking_payment_v25',{
+        p_booking_id:body.booking_id,p_amount:Number(body.amount),
+        p_method:body.method||'cash',p_notes:body.notes||null
+      });
+    if (p === '/api/shop-system/purchase-payment' && method === 'POST')
+      return await rpc('record_purchase_payment_v25',{
+        p_purchase_order_id:body.purchase_order_id,
+        p_amount:Number(body.amount),p_notes:body.notes||null
+      });
+    if (p === '/api/shop-system/expenses' && method === 'POST')
+      return await rpc('create_expense_v25',{p_payload:body});
 
     // التصنيفات والمنتجات
     if (p === '/api/categories' && method === 'GET') {

@@ -377,10 +377,109 @@ async function renderLeaves(filters={}){
 async function renderPayroll(filters={}){
  if(PORTAL_MODE==='employee'&&!can('payroll.view')){const d=await api('/api/payroll/my-payslips');$('#content').innerHTML=`<section class="panel"><div class="panel-head"><h3>قسائم رواتبي</h3></div><div class="table-wrap"><table class="data-table"><thead><tr><th>القسيمة</th><th>الشهر</th><th>أيام العمل</th><th>الغياب</th><th>الإضافات</th><th>الاستقطاعات</th><th>الصافي</th><th>الصرف</th><th>المستند</th></tr></thead><tbody>${d.items.map(x=>`<tr><td>${escapeHtml(x.payslip_no)}</td><td>${dateOnly(x.month_start)}</td><td>${number(x.present_days)}</td><td>${number(x.absent_days)}</td><td>${money(x.earnings_total)}</td><td>${money(x.deductions_total)}</td><td><b>${money(x.net_salary)}</b></td><td>${statusBadge(x.payment_status)}</td><td><button class="mini-btn" data-payslip-print="${x.id}">طباعة / PDF</button></td></tr>`).join('')}</tbody></table></div></section>`;document.querySelectorAll('[data-payslip-print]').forEach(b=>b.onclick=()=>window.WardatDocuments.open('payslip',b.dataset.payslipPrint));return;}
  const saved={month:hrMonth(),...getSavedFilters('payroll'),...filters};const d=await api(`/api/payroll/runs?month=${saved.month}-01`);state.cache.payrollRuns=d.items;
- $('#content').innerHTML=`${smartFilterBar('payroll',[{key:'month',label:'شهر الرواتب',type:'month'},{key:'branch',label:'الفرع'},{key:'department',label:'القسم'},{key:'status',label:'الحالة'}],saved,d.items.length)}<div class="toolbar">${can('payroll.create')?'<button class="btn btn-primary" id="createPayroll">إنشاء مسير الشهر</button> <button class="btn btn-outline" id="salarySetupBtn">إعداد رواتب الموظفين</button>':''}<button class="btn btn-outline" id="exportPayrollRuns">تصدير القائمة</button></div><div class="metrics">${metricHtml('عدد المسيرات',d.items.length)}${metricHtml('إجمالي الصافي',can('payroll.view_financial')?money(d.items.reduce((s,x)=>s+Number(x.net_total||0),0)):'—')}${metricHtml('حضور ناقص',d.items.reduce((s,x)=>s+Number(x.incomplete_attendance_count||0),0))}${metricHtml('المعتمدة',d.items.filter(x=>x.status==='approved'||x.status==='paid').length)}</div><div class="table-wrap"><table class="data-table"><thead><tr><th>المسير</th><th>الشهر</th><th>النطاق</th><th>الموظفون</th><th>صافي المسير</th><th>الحضور الناقص</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>${d.items.map(x=>`<tr><td><b>${escapeHtml(x.payroll_no)}</b></td><td>${dateOnly(x.month_start)}</td><td>${escapeHtml([x.branch,x.department].filter(Boolean).join(' / ')||'الكل')}</td><td>${number(x.employee_count)}</td><td>${can('payroll.view_financial')?money(x.net_total):'محجوب'}</td><td>${number(x.incomplete_attendance_count)}</td><td>${statusBadge(x.status)}</td><td><button class="mini-btn" data-payroll-open="${x.id}">فتح</button>${can('payroll.recalculate')&&!['approved','paid'].includes(x.status)?`<button class="mini-btn" data-payroll-calc="${x.id}">احتساب</button>`:''}</td></tr>`).join('')}</tbody></table></div><div id="payrollDetails"></div>`;
- bindSmartFilters('payroll',renderPayroll);$('#exportPayrollRuns').onclick=()=>downloadCsv(d.items,`payroll-runs-${saved.month}.csv`);$('#salarySetupBtn')?.addEventListener('click',openSalarySetup);$('#createPayroll')?.addEventListener('click',async()=>{await api('/api/payroll/runs',{method:'POST',body:{month:saved.month+'-01',branch:saved.branch||'',department:saved.department||''}});toast('تم إنشاء المسير');await renderPayroll(saved)});$$('[data-payroll-calc]').forEach(b=>b.onclick=async()=>{if(!confirm('سيتم إعادة احتساب جميع الموظفين في هذا المسير. متابعة؟'))return;await api(`/api/payroll/runs/${b.dataset.payrollCalc}/calculate`,{method:'POST'});toast('اكتمل الاحتساب');await renderPayroll(saved)});$$('[data-payroll-open]').forEach(b=>b.onclick=()=>openPayrollRun(b.dataset.payrollOpen));
+ $('#content').innerHTML=`${smartFilterBar('payroll',[{key:'month',label:'شهر الرواتب',type:'month'},{key:'branch',label:'الفرع'},{key:'department',label:'القسم'},{key:'status',label:'الحالة'}],saved,d.items.length)}<div class="toolbar">${can('payroll.create')?'<button class="btn btn-primary" id="createPayroll">إنشاء واحتساب المسير تلقائيًا</button> <button class="btn btn-outline" id="salarySetupBtn">إعداد رواتب الموظفين</button>':''}<button class="btn btn-outline" id="exportPayrollRuns">تصدير القائمة</button></div><div class="metrics">${metricHtml('عدد المسيرات',d.items.length)}${metricHtml('إجمالي الصافي',can('payroll.view_financial')?money(d.items.reduce((s,x)=>s+Number(x.net_total||0),0)):'—')}${metricHtml('حضور ناقص',d.items.reduce((s,x)=>s+Number(x.incomplete_attendance_count||0),0))}${metricHtml('المعتمدة',d.items.filter(x=>x.status==='approved'||x.status==='paid').length)}</div><div class="table-wrap"><table class="data-table"><thead><tr><th>المسير</th><th>الشهر</th><th>النطاق</th><th>الموظفون</th><th>صافي المسير</th><th>الحضور الناقص</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>${d.items.map(x=>`<tr><td><b>${escapeHtml(x.payroll_no)}</b></td><td>${dateOnly(x.month_start)}</td><td>${escapeHtml([x.branch,x.department].filter(Boolean).join(' / ')||'الكل')}</td><td>${number(x.employee_count)}</td><td>${can('payroll.view_financial')?money(x.net_total):'محجوب'}</td><td>${number(x.incomplete_attendance_count)}</td><td>${statusBadge(x.status)}</td><td><button class="mini-btn" data-payroll-open="${x.id}">فتح</button>${can('payroll.recalculate')&&!['approved','paid'].includes(x.status)?`<button class="mini-btn" data-payroll-calc="${x.id}">تحديث الحساب</button>`:''}</td></tr>`).join('')}</tbody></table></div><div id="payrollDetails"></div>`;
+ bindSmartFilters('payroll',renderPayroll);$('#exportPayrollRuns').onclick=()=>downloadCsv(d.items,`payroll-runs-${saved.month}.csv`);$('#salarySetupBtn')?.addEventListener('click',openSalarySetup);$('#createPayroll')?.addEventListener('click',async()=>{await api('/api/payroll/runs',{method:'POST',body:{month:saved.month+'-01',branch:saved.branch||'',department:saved.department||''}});toast('تم إنشاء المسير واحتسابه تلقائيًا');await renderPayroll(saved)});$$('[data-payroll-calc]').forEach(b=>b.onclick=async()=>{if(!confirm('سيتم إعادة احتساب جميع الموظفين في هذا المسير. متابعة؟'))return;await api(`/api/payroll/runs/${b.dataset.payrollCalc}/calculate`,{method:'POST'});toast('تم تحديث الحساب من الحضور والإجازات والمأذونيات والسلف والجزاءات');await renderPayroll(saved)});$$('[data-payroll-open]').forEach(b=>b.onclick=()=>openPayrollRun(b.dataset.payrollOpen));
 }
-async function openPayrollRun(id){const d=await api(`/api/payroll/runs/${id}`);const r=d.run||{};$('#payrollDetails').innerHTML=`<section class="panel" style="margin-top:18px"><div class="panel-head"><div><h3>${escapeHtml(r.payroll_no)}</h3><small>${dateOnly(r.month_start)} · ${hrLabel(r.status)}</small></div><div>${can('payroll.approve')&&!['approved','paid'].includes(r.status)?`<button class="btn btn-primary" data-run-approve="${id}">اعتماد المسير</button>`:''}<button class="btn btn-outline" data-run-export="${id}">تصدير التفاصيل</button></div></div><div class="table-wrap"><table class="data-table"><thead><tr><th>الموظف</th><th>الحضور</th><th>الغياب</th><th>التأخير</th><th>الأوفر تايم</th><th>الأساسي</th><th>البدلات</th><th>الإضافات</th><th>الاستقطاعات</th><th>الصافي</th><th>الصرف</th></tr></thead><tbody>${d.items.map(x=>`<tr><td><b>${escapeHtml(x.employee_name)}</b><small>${escapeHtml(x.employee_no||'')}</small></td><td>${number(x.present_days)}</td><td>${number(x.absent_days)}</td><td>${number(x.late_minutes)} د</td><td>${number(x.overtime_minutes/60)} س</td><td>${money(x.base_due)}</td><td>${money(x.allowances_total)}</td><td>${money(Number(x.overtime_total)+Number(x.commissions_total)+Number(x.rewards_total))}</td><td>${money(x.deductions_total)}</td><td><b>${money(x.net_salary)}</b></td><td>${statusBadge(x.payment_status)}${can('payroll.pay')&&x.payment_status!=='paid'?`<button class="mini-btn" data-pay-item="${x.id}" data-remain="${Number(x.net_salary)-Number(x.paid_amount)}">صرف</button>`:''}</td></tr>`).join('')}</tbody></table></div></section>`;document.querySelector(`[data-run-export="${id}"]`).onclick=()=>downloadCsv(d.items,`payroll-${r.payroll_no}.csv`);document.querySelector(`[data-run-approve="${id}"]`)?.addEventListener('click',async()=>{const notes=prompt('ملاحظات الاعتماد:')||'';await api(`/api/payroll/runs/${id}/status`,{method:'POST',body:{status:'approved',notes}});toast('تم اعتماد المسير');await openPayrollRun(id)});$$('[data-pay-item]').forEach(b=>b.onclick=()=>openForm('تسجيل صرف الراتب',`<form class="form-grid single"><label>المبلغ<input name="amount" type="number" step="0.01" value="${b.dataset.remain}" required></label><label>طريقة الصرف<select name="method"><option value="bank_transfer">تحويل بنكي</option><option value="cash">نقدي</option></select></label><label>رقم المرجع<input name="reference"></label><button class="btn btn-primary" type="submit">تسجيل الصرف</button></form>`,async x=>{await api(`/api/payroll/items/${b.dataset.payItem}/pay`,{method:'POST',body:x});toast('تم تسجيل الصرف');await openPayrollRun(id)}));}
+async function openPayrollRun(id){
+ const d=await api(`/api/payroll/runs/${id}`);
+ const r=d.run||{};
+ const totalPermissions=(d.items||[]).reduce((s,x)=>s+Number(x.permission_minutes||0),0);
+ const totalAdvances=(d.items||[]).reduce((s,x)=>s+Number(x.advances_total||0),0);
+ const totalPenalties=(d.items||[]).reduce((s,x)=>s+Number(x.penalties_total||0),0);
+ const totalRewards=(d.items||[]).reduce((s,x)=>s+Number(x.rewards_total||0),0);
+ $('#payrollDetails').innerHTML=`<section class="panel payroll-auto-panel" style="margin-top:18px">
+  <div class="panel-head">
+   <div>
+    <h3>${escapeHtml(r.payroll_no)}</h3>
+    <small>${dateOnly(r.month_start)} · ${hrLabel(r.status)} · احتساب تلقائي${r.last_calculated_at?` · آخر تحديث ${dt(r.last_calculated_at)}`:''}</small>
+   </div>
+   <div>
+    ${can('payroll.approve')&&!['approved','paid'].includes(r.status)?`<button class="btn btn-primary" data-run-approve="${id}">اعتماد المسير</button>`:''}
+    <button class="btn btn-outline" data-run-export="${id}">تصدير التفاصيل</button>
+   </div>
+  </div>
+  <div class="payroll-source-note">
+   مرتبط تلقائيًا بالحضور والغياب والإجازات والمأذونيات والأوفر تايم والمكافآت والسلف والجزاءات.
+   الأيام غير المحضرة لا تُخصم حتى تسجل غيابًا.
+  </div>
+  <div class="metrics">
+   ${metricHtml('دقائق المأذونيات',number(totalPermissions))}
+   ${metricHtml('المكافآت',money(totalRewards))}
+   ${metricHtml('أقساط السلف',money(totalAdvances))}
+   ${metricHtml('الجزاءات',money(totalPenalties))}
+   ${metricHtml('حضور ناقص',number(r.incomplete_attendance_count||0))}
+  </div>
+  <div class="table-wrap">
+   <table class="data-table payroll-linked-table">
+    <thead><tr>
+     <th>الموظف</th>
+     <th>حضور</th>
+     <th>غياب</th>
+     <th>إجازة مدفوعة</th>
+     <th>بدون راتب</th>
+     <th>مأذونية</th>
+     <th>غير محضر</th>
+     <th>التأخير المحتسب</th>
+     <th>أوفر تايم</th>
+     <th>الأساسي</th>
+     <th>البدلات</th>
+     <th>المكافآت</th>
+     <th>السلف</th>
+     <th>الجزاءات</th>
+     <th>الاستقطاعات</th>
+     <th>الصافي</th>
+     <th>الصرف</th>
+    </tr></thead>
+    <tbody>${d.items.map(x=>`<tr>
+     <td><b>${escapeHtml(x.employee_name)}</b><small>${escapeHtml(x.employee_no||'')}</small></td>
+     <td><span class="status green">${number(x.present_days)}</span></td>
+     <td><span class="status red">${number(x.absent_days)}</span></td>
+     <td>${number(x.paid_leave_days)}</td>
+     <td>${number(x.unpaid_leave_days)}</td>
+     <td>${number(x.permission_minutes||0)} د<small>${number(x.permission_count||0)} طلب</small></td>
+     <td>${Number(x.unmarked_days||0)>0?`<span class="status amber">${number(x.unmarked_days)}</span>`:'0'}</td>
+     <td>${number(x.chargeable_late_minutes??(Number(x.late_minutes||0)+Number(x.early_minutes||0)))} د</td>
+     <td>${number(Number(x.overtime_minutes||0)/60)} س</td>
+     <td>${money(x.base_due)}</td>
+     <td>${money(x.allowances_total)}</td>
+     <td>${money(x.rewards_total)}</td>
+     <td>${money(x.advances_total)}</td>
+     <td>${money(x.penalties_total)}</td>
+     <td>${money(x.deductions_total)}</td>
+     <td><b>${money(x.net_salary)}</b></td>
+     <td>${statusBadge(x.payment_status)}${can('payroll.pay')&&x.payment_status!=='paid'?`<button class="mini-btn" data-pay-item="${x.id}" data-remain="${Number(x.net_salary)-Number(x.paid_amount)}">صرف</button>`:''}</td>
+    </tr>`).join('')}</tbody>
+   </table>
+  </div>
+ </section>`;
+ document.querySelector(`[data-run-export="${id}"]`).onclick=()=>downloadCsv(d.items,`payroll-${r.payroll_no}.csv`);
+ document.querySelector(`[data-run-approve="${id}"]`)?.addEventListener('click',async()=>{
+  const notes=prompt('ملاحظات الاعتماد:')||'';
+  await api(`/api/payroll/runs/${id}/status`,{
+   method:'POST',
+   body:{status:'approved',notes}
+  });
+  toast('تم اعتماد المسير');
+  await openPayrollRun(id);
+ });
+ $$('[data-pay-item]').forEach(b=>b.onclick=()=>openForm(
+  'تسجيل صرف الراتب',
+  `<form class="form-grid single">
+   <label>المبلغ<input name="amount" type="number" step="0.01" value="${b.dataset.remain}" required></label>
+   <label>طريقة الصرف<select name="method"><option value="bank_transfer">تحويل بنكي</option><option value="cash">نقدي</option></select></label>
+   <label>رقم المرجع<input name="reference"></label>
+   <button class="btn btn-primary" type="submit">تسجيل الصرف</button>
+  </form>`,
+  async x=>{
+   await api(`/api/payroll/items/${b.dataset.payItem}/pay`,{
+    method:'POST',
+    body:x
+   });
+   toast('تم تسجيل الصرف');
+   await openPayrollRun(id);
+  }
+ ));
+}
 
 async function renderCompensation(filters={}){const saved={month:hrMonth(),...getSavedFilters('compensation'),...filters};const [d,emps]=await Promise.all([api(`/api/compensation?month=${saved.month}-01`),api('/api/employees')]);$('#content').innerHTML=`${smartFilterBar('compensation',[{key:'month',label:'شهر التطبيق',type:'month'},{key:'type',label:'النوع',type:'select',options:[{value:'advance',label:'سلفة'},{value:'penalty',label:'جزاء'},{value:'reward',label:'مكافأة'},{value:'commission',label:'عمولة'}]},{key:'status',label:'الحالة'}],saved,d.items.length)}<div class="toolbar">${can('compensation.create')?'<button class="btn btn-primary" id="addCompensation">إضافة حركة مالية</button>':''}<button class="btn btn-outline" id="exportCompensation">تصدير</button></div><div class="table-wrap"><table class="data-table"><thead><tr><th>الموظف</th><th>النوع</th><th>القيمة</th><th>السبب</th><th>شهر التطبيق</th><th>الحالة</th><th>إجراء</th></tr></thead><tbody>${d.items.filter(x=>(!saved.type||x.item_type===saved.type)&&(!saved.status||x.status===saved.status)).map(x=>`<tr><td>${escapeHtml(x.employee_name)}</td><td>${escapeHtml({advance:'سلفة',penalty:'جزاء',reward:'مكافأة',commission:'عمولة'}[x.item_type])}</td><td>${money(x.amount)}</td><td>${escapeHtml(x.reason)}</td><td>${dateOnly(x.apply_month)}</td><td>${statusBadge(x.status)}</td><td>${can('compensation.approve')&&x.status==='pending'?`<button class="mini-btn" data-comp-approve="${x.id}" data-type="${x.item_type}">اعتماد</button>`:''}</td></tr>`).join('')}</tbody></table></div>`;bindSmartFilters('compensation',renderCompensation);$('#exportCompensation').onclick=()=>downloadCsv(d.items,`compensation-${saved.month}.csv`);$('#addCompensation')?.addEventListener('click',()=>openForm('إضافة سلفة أو جزاء أو مكافأة',`<form class="form-grid"><label>الموظف<select name="employee_id" required>${emps.items.map(e=>`<option value="${e.id}">${escapeHtml(e.name)} · ${escapeHtml(e.job_title||'')}</option>`).join('')}</select></label><label>النوع<select name="type"><option value="advance">سلفة</option><option value="penalty">جزاء</option><option value="reward">مكافأة</option><option value="commission">عمولة</option></select></label><label>القيمة<input name="amount" type="number" min="0.01" step="0.01" required></label><label>شهر التطبيق<input name="apply_month" type="month" value="${saved.month}" required></label><label>عدد الأقساط<input name="installment_count" type="number" min="1" value="1"></label><label class="span-2">السبب<textarea name="reason" required></textarea></label><button class="btn btn-primary span-2" type="submit">حفظ الحركة</button></form>`,async x=>{const type=x.type;delete x.type;x.apply_month=x.apply_month+'-01';await api('/api/compensation',{method:'POST',body:{type,payload:x}});toast('تمت إضافة الحركة');await renderCompensation(saved)}));$$('[data-comp-approve]').forEach(b=>b.onclick=async()=>{await api(`/api/compensation/${b.dataset.type}/${b.dataset.compApprove}/approve`,{method:'POST',body:{status:'approved',reason:'اعتماد الإدارة'}});toast('تم الاعتماد');await renderCompensation(saved)});}
 async function openHRSetup(){

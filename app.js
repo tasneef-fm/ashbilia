@@ -44,6 +44,7 @@ const state = {
 
 const pages = [
   {id:'dashboard',icon:'◈',label:'لوحة الإدارة',permission:'dashboard.view'},
+  {id:'shopbooks',icon:'▦',label:'نظام المحل',permission:'reports.view'},
   {id:'pos',icon:'▣',label:'نقطة البيع',permission:'pos.view'},
   {id:'orders',icon:'▤',label:'الطلبات',permission:'orders.view'},
   {id:'bookings',icon:'◫',label:'الحجوزات والمناسبات',permission:'bookings.view'},
@@ -392,8 +393,285 @@ function renderNav(){
   nav.innerHTML=allowed.map(p=>`<button class="nav-item ${state.currentPage===p.id?'active':''}" data-page="${p.id}"><span class="ico">${p.icon}</span>${escapeHtml(pageLabel(p))}</button>`).join('');
   $$('[data-page]',nav).forEach(b=>b.onclick=()=>{state.currentPage=b.dataset.page;renderNav();renderPage(state.currentPage);$('.sidebar')?.classList.remove('open');});
 }
-async function renderPage(page,force=false){const meta=availablePages().find(p=>p.id===page);if(!meta||!can(meta.permission)){state.currentPage=null;renderNav();$('#pageTitle').textContent='غير مصرح';$('#pageSubtitle').textContent='تم منع فتح الرابط المباشر';$('#content').innerHTML='<div class="empty"><h3>ليس لديك صلاحية لفتح هذا القسم</h3><p>تم منع تحميل بيانات القسم.</p></div>';return;}state.currentPage=page;renderNav();$('#pageTitle').textContent=pageLabel(meta);$('#pageSubtitle').textContent=pageSub(page);$('#content').innerHTML='<div class="empty">جاري تحميل البيانات...</div>';try{switch(page){case'dashboard':await renderDashboard();break;case'products':await renderProducts();break;case'inventory':await renderInventory();break;case'pos':await renderPOS();break;case'orders':await renderOrders();break;case'bookings':await renderBookings();break;case'quotes':await renderQuotes();break;case'workorders':await renderWorkOrders();break;case'employees':await renderEmployees();break;case'customers':await renderCustomers();break;case'purchases':await renderPurchases();break;case'smart':await renderSmart();break;case'reports':await renderReports();break;case'users':await renderUsers();break;case'audit':await renderAudit();break;case'dataquality':await renderDataQuality();break;case'attendance':await renderAttendance();break;case'leaves':await renderLeaves();break;case'payroll':await renderPayroll();break;case'compensation':await renderCompensation();break;case'settings':renderSettings();break;default:$('#content').innerHTML='<div class="empty">القسم قيد الإعداد</div>';}applyPagePermissions(page);enhanceCurrentPageTables(page);enhanceSearchableSelects($('#content'));bindRecordActions();}catch(err){$('#content').innerHTML=`<div class="empty">${escapeHtml(err.message)}</div>`;toast(err.message,'error');}}
-function pageSub(p){return {dashboard:'نظرة مباشرة على التشغيل والمبيعات',products:'إدارة المنتجات والأسعار والتصنيفات',inventory:'الكميات والحركات والتنبيهات',pos:'بيع مباشر وإصدار فاتورة وخصم المخزون',orders:'متابعة الطلبات والمدفوعات والتسليم',bookings:'تقويم الأعراس والمناسبات والمعاينات',quotes:'من عرض السعر إلى الحجز وأمر العمل',workorders:'تنفيذ المهام والتوثيق وإعادة المعدات',employees:'ملفات الموظفين وربطهم بالحضور والغياب والرواتب',customers:'سجل العميل والطلبات ونقاط الولاء',purchases:'الموردون وأوامر الشراء والاستلام',smart:'تنبيهات واقتراحات مبنية على بيانات النظام',reports:'تقارير قابلة للفلترة والتصدير',users:'إدارة المستخدمين والأدوار والصلاحيات الفعلية',audit:'كل تعديل وحذف واعتماد داخل النظام',dataquality:'كشف التكرار وعدم التطابق والأخطاء قبل أن تؤثر على التشغيل',attendance:'تسجيل وتحضير ومراجعة الحضور والغياب والأوفر تايم',leaves:'طلبات الإجازات والمأذونيات وربطها بالحضور والراتب',payroll:'الاحتساب والمراجعة والاعتماد والقسائم والصرف',compensation:'السلف والأقساط والجزاءات والمكافآت والعمولات',settings:'بيانات المنشأة والتجربة والإعدادات'}[p]||'';}
+async function renderPage(page,force=false){const meta=availablePages().find(p=>p.id===page);if(!meta||!can(meta.permission)){state.currentPage=null;renderNav();$('#pageTitle').textContent='غير مصرح';$('#pageSubtitle').textContent='تم منع فتح الرابط المباشر';$('#content').innerHTML='<div class="empty"><h3>ليس لديك صلاحية لفتح هذا القسم</h3><p>تم منع تحميل بيانات القسم.</p></div>';return;}state.currentPage=page;renderNav();$('#pageTitle').textContent=pageLabel(meta);$('#pageSubtitle').textContent=pageSub(page);$('#content').innerHTML='<div class="empty">جاري تحميل البيانات...</div>';try{switch(page){case'dashboard':await renderDashboard();break;case'shopbooks':await renderShopBooks();break;case'products':await renderProducts();break;case'inventory':await renderInventory();break;case'pos':await renderPOS();break;case'orders':await renderOrders();break;case'bookings':await renderBookings();break;case'quotes':await renderQuotes();break;case'workorders':await renderWorkOrders();break;case'employees':await renderEmployees();break;case'customers':await renderCustomers();break;case'purchases':await renderPurchases();break;case'smart':await renderSmart();break;case'reports':await renderReports();break;case'users':await renderUsers();break;case'audit':await renderAudit();break;case'dataquality':await renderDataQuality();break;case'attendance':await renderAttendance();break;case'leaves':await renderLeaves();break;case'payroll':await renderPayroll();break;case'compensation':await renderCompensation();break;case'settings':renderSettings();break;default:$('#content').innerHTML='<div class="empty">القسم قيد الإعداد</div>';}applyPagePermissions(page);enhanceCurrentPageTables(page);enhanceSearchableSelects($('#content'));bindRecordActions();}catch(err){$('#content').innerHTML=`<div class="empty">${escapeHtml(err.message)}</div>`;toast(err.message,'error');}}
+function pageSub(p){return {dashboard:'نظرة مباشرة على التشغيل والمبيعات',shopbooks:'نظام المحل مطابق لكشوف الإكسل والحسابات التلقائية',products:'إدارة المنتجات والأسعار والتصنيفات',inventory:'الكميات والحركات والتنبيهات',pos:'بيع مباشر وإصدار فاتورة وخصم المخزون',orders:'متابعة الطلبات والمدفوعات والتسليم',bookings:'تقويم الأعراس والمناسبات والمعاينات',quotes:'من عرض السعر إلى الحجز وأمر العمل',workorders:'تنفيذ المهام والتوثيق وإعادة المعدات',employees:'ملفات الموظفين وربطهم بالحضور والغياب والرواتب',customers:'سجل العميل والطلبات ونقاط الولاء',purchases:'الموردون وأوامر الشراء والاستلام',smart:'تنبيهات واقتراحات مبنية على بيانات النظام',reports:'تقارير قابلة للفلترة والتصدير',users:'إدارة المستخدمين والأدوار والصلاحيات الفعلية',audit:'كل تعديل وحذف واعتماد داخل النظام',dataquality:'كشف التكرار وعدم التطابق والأخطاء قبل أن تؤثر على التشغيل',attendance:'تسجيل وتحضير ومراجعة الحضور والغياب والأوفر تايم',leaves:'طلبات الإجازات والمأذونيات وربطها بالحضور والراتب',payroll:'الاحتساب والمراجعة والاعتماد والقسائم والصرف',compensation:'السلف والأقساط والجزاءات والمكافآت والعمولات',settings:'بيانات المنشأة والتجربة والإعدادات'}[p]||'';}
+
+
+const SHOP_TABS=[
+ ['dashboard','لوحة التحكم'],
+ ['bookings','الحجوزات'],
+ ['custodies','العهد'],
+ ['daily','المبيعات اليومية'],
+ ['purchases','المشتريات'],
+ ['expenses','المصروفات'],
+ ['drivers','المندوبون'],
+ ['payroll','الرواتب'],
+ ['inventory','الجرد']
+];
+function shopStatus(text,type=''){
+ const cls=type||(
+  ['نعم','تم التصفية','مدفوع','paid','جيد','ربح','مكتمل'].includes(String(text))?'green':
+  ['لا','لم تتم','جزئي','partial','منخفض','تعادل','حضور ناقص'].includes(String(text))?'amber':
+  ['خسارة','نفد','الفواتير أعلى من العهدة','unpaid'].includes(String(text))?'red':''
+ );
+ return `<span class="status ${cls}">${escapeHtml(text||'—')}</span>`;
+}
+function shopMetric(label,value,sub=''){
+ return `<div class="metric-card"><small>${escapeHtml(label)}</small><strong>${value}</strong><div class="trend">${escapeHtml(sub||'محسوب تلقائيًا')}</div></div>`;
+}
+function shopPaymentLabel(code=''){
+ return {cash:'كاش',mada:'شبكة',bank_transfer:'تحويل',credit:'آجل',online:'إلكتروني'}[code]||code||'—';
+}
+async function renderShopBooks(options={}){
+ const month=options.month||state.cache.shopMonth||new Date().toISOString().slice(0,7);
+ const tab=options.tab||state.cache.shopTab||'dashboard';
+ state.cache.shopMonth=month;state.cache.shopTab=tab;
+ const data=await api(`/api/shop-system?month=${month}-01`);
+ state.cache.shopSystem=data;
+ $('#content').innerHTML=`<div class="shop-system-head">
+  <div>
+   <h2>نظام المحل الموحد</h2>
+   <p>نفس آلية كشوف الإكسل، ولكن مرتبطة مباشرة بالمبيعات والمخزون والحجوزات والرواتب.</p>
+  </div>
+  <div class="shop-month-actions">
+   <label>الشهر<input type="month" id="shopMonth" value="${escapeHtml(month)}"></label>
+   <button class="btn btn-outline" id="shopRefresh">تحديث</button>
+   <button class="btn btn-outline" id="shopExport">تصدير الحالي</button>
+   <button class="btn btn-outline" id="shopPrint">طباعة / PDF</button>
+  </div>
+ </div>
+ <div class="shop-tabs">${SHOP_TABS.map(([id,label])=>`<button class="shop-tab ${id===tab?'active':''}" data-shop-tab="${id}">${label}</button>`).join('')}</div>
+ <div id="shopTabArea"></div>`;
+ renderShopTab(tab,data);
+ $('#shopMonth').onchange=e=>renderShopBooks({month:e.target.value,tab});
+ $('#shopRefresh').onclick=()=>renderShopBooks({month,tab});
+ $$('[data-shop-tab]').forEach(b=>b.onclick=()=>{
+  state.cache.shopTab=b.dataset.shopTab;
+  $$('[data-shop-tab]').forEach(x=>x.classList.toggle('active',x===b));
+  renderShopTab(b.dataset.shopTab,state.cache.shopSystem);
+ });
+ $('#shopExport').onclick=()=>downloadCsv(
+  state.cache.shopCurrentRows||[],
+  `wardat-${state.cache.shopTab||'shop'}-${month}.csv`
+ );
+ $('#shopPrint').onclick=()=>{
+  const rows=state.cache.shopCurrentRows||[];
+  const title=SHOP_TABS.find(x=>x[0]===state.cache.shopTab)?.[1]||'نظام المحل';
+  window.WardatDocuments.open('report',null,{document:{
+   type:'report',title:`${title} — ${month}`,
+   header:{document_no:`SHOP-${month}`,created_at:new Date().toISOString()},
+   items:rows,generic:true,show_totals:false
+  }});
+ };
+}
+function renderShopTab(tab,d){
+ state.cache.shopTab=tab;
+ const area=$('#shopTabArea');
+ if(!area)return;
+ if(tab==='dashboard'){
+  const m=d.dashboard||{};
+  state.cache.shopCurrentRows=[
+   {المؤشر:'إجمالي المبيعات',القيمة:m.sales_total},
+   {المؤشر:'تكلفة المباع',القيمة:m.cost_of_goods},
+   {المؤشر:'مجمل الربح',القيمة:m.gross_profit},
+   {المؤشر:'المصروفات',القيمة:m.expenses_total},
+   {المؤشر:'صافي الربح',القيمة:m.net_profit},
+   {المؤشر:'قيمة المخزون',القيمة:m.inventory_value}
+  ];
+  area.innerHTML=`<div class="metrics">
+   ${shopMetric('إجمالي المبيعات',money(m.sales_total))}
+   ${shopMetric('تكلفة المباع',money(m.cost_of_goods))}
+   ${shopMetric('مجمل الربح',money(m.gross_profit))}
+   ${shopMetric('المصروفات',money(m.expenses_total))}
+   ${shopMetric('صافي الربح',money(m.net_profit))}
+   ${shopMetric('قيمة المخزون',money(m.inventory_value))}
+   ${shopMetric('منخفضة / نافدة',number(Number(m.low_stock||0)+Number(m.out_of_stock||0)))}
+   ${shopMetric('الأصناف الخاسرة',number(m.loss_products||0))}
+  </div>
+  <div class="grid-2">
+   <section class="panel"><div class="panel-head"><h3>المبيعات حسب طريقة الدفع</h3></div>
+    <div class="list">${(d.payment_breakdown||[]).map(x=>`<div class="list-item"><span>${escapeHtml(x.label)}</span><b>${money(x.amount)}</b></div>`).join('')}</div>
+   </section>
+   <section class="panel"><div class="panel-head"><h3>حالة ربح الأصناف</h3></div>
+    <div class="list">${(d.product_status||[]).map(x=>`<div class="list-item"><span>${shopStatus(x.status)}</span><b>${number(x.count)}</b></div>`).join('')}</div>
+   </section>
+  </div>`;
+  return;
+ }
+ if(tab==='bookings'){
+  const s=d.booking_summary||{},rows=d.bookings||[];
+  state.cache.shopCurrentRows=rows;
+  area.innerHTML=`<div class="metrics">
+   ${shopMetric('عدد الحجوزات',number(s.count))}
+   ${shopMetric('المسددة',number(s.paid_count))}
+   ${shopMetric('إجمالي المبلغ',money(s.total))}
+   ${shopMetric('إجمالي المدفوع',money(s.paid))}
+   ${shopMetric('إجمالي المتبقي',money(s.remaining))}
+  </div>
+  <section class="panel"><div class="panel-head"><h3>كشف الحجوزات</h3><button class="btn btn-outline" data-go-page="bookings">فتح إدارة الحجوزات</button></div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>رقم الحجز</th><th>التاريخ</th><th>العميل</th><th>المبلغ</th><th>المدفوع</th><th>المتبقي</th><th>ملاحظات</th><th>تم السداد</th><th>إجراء</th></tr></thead>
+  <tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.booking_no)}</td><td>${dateOnly(x.booking_date)}</td><td><b>${escapeHtml(x.customer_name)}</b></td><td>${money(x.total_amount)}</td><td>${money(x.paid_amount)}</td><td>${money(x.remaining_amount)}</td><td>${escapeHtml(x.notes||'')}</td><td>${shopStatus(x.paid_status)}</td><td>${Number(x.remaining_amount)>0?`<button class="mini-btn" data-booking-pay="${x.id}" data-remaining="${x.remaining_amount}" data-name="${escapeHtml(x.customer_name)}">تسجيل دفعة</button>`:'—'}</td></tr>`).join('')}</tbody></table></div></section>`;
+  $$('[data-booking-pay]').forEach(b=>b.onclick=()=>shopBookingPaymentForm(b.dataset.bookingPay,b.dataset.name,Number(b.dataset.remaining)));
+  $('[data-go-page="bookings"]')?.addEventListener('click',()=>renderPage('bookings'));
+  return;
+ }
+ if(tab==='custodies'){
+  const s=d.custody_summary||{},rows=d.custodies||[];
+  state.cache.shopCurrentRows=rows;
+  area.innerHTML=`<div class="toolbar"><button class="btn btn-primary" id="addCustody">إضافة عهدة</button></div>
+  <div class="metrics">${shopMetric('عدد العهد',number(s.count))}${shopMetric('تمت التصفية',number(s.settled_count))}${shopMetric('إجمالي العهد',money(s.custody_total))}${shopMetric('إجمالي الفواتير',money(s.invoices_total))}${shopMetric('إجمالي المتبقي',money(s.remaining_total))}</div>
+  <section class="panel"><div class="panel-head"><h3>كشف العهد</h3></div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>الاسم</th><th>التاريخ</th><th>العهدة</th><th>قيمة الفواتير</th><th>المتبقي</th><th>ملاحظات</th><th>حالة التصفية</th><th>الإجراءات</th></tr></thead>
+  <tbody>${rows.map(x=>`<tr><td><b>${escapeHtml(x.holder_name)}</b><small>${escapeHtml(x.custody_no)}</small></td><td>${dateOnly(x.custody_date)}</td><td>${money(x.custody_amount)}</td><td>${money(x.invoices_amount)}</td><td class="${Number(x.remaining)<0?'negative-number':''}">${money(x.remaining)}</td><td>${escapeHtml(x.notes||'')}</td><td>${shopStatus(x.settlement_status)}</td><td><button class="mini-btn" data-custody-edit="${x.id}">تعديل</button><button class="mini-btn danger-lite" data-custody-delete="${x.id}">حذف</button></td></tr>`).join('')}</tbody></table></div></section>`;
+  $('#addCustody').onclick=()=>shopCustodyForm();
+  $$('[data-custody-edit]').forEach(b=>b.onclick=()=>shopCustodyForm(rows.find(x=>x.id===b.dataset.custodyEdit)));
+  $$('[data-custody-delete]').forEach(b=>b.onclick=()=>shopDeleteCustody(b.dataset.custodyDelete));
+  return;
+ }
+ if(tab==='daily'){
+  const s=d.daily_summary||{},rows=d.daily_sales||[];
+  state.cache.shopCurrentRows=rows;
+  area.innerHTML=`<div class="metrics">${shopMetric('إجمالي الشبكة',money(s.network_total))}${shopMetric('إجمالي الكاش',money(s.cash_total))}${shopMetric('إجمالي التحويل',money(s.transfer_total))}${shopMetric('إجمالي المبيعات',money(s.sales_total))}${shopMetric('المشتريات',money(s.purchases_total))}${shopMetric('النثريات',money(s.expenses_total))}${shopMetric('صافي المبيعات',money(s.net_total))}${shopMetric('متوسط صافي اليوم',money(s.average_day))}</div>
+  <section class="panel"><div class="panel-head"><h3>كشف المبيعات اليومية</h3><small>أعلى صافي: ${money(s.highest_net)} · ${dateOnly(s.highest_date)}</small></div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>اليوم</th><th>التاريخ</th><th>شبكة</th><th>كاش</th><th>تحويل</th><th>مشتريات</th><th>نثريات</th><th>المجموع</th></tr></thead>
+  <tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.day_name)}</td><td>${dateOnly(x.date)}</td><td>${money(x.network)}</td><td>${money(x.cash)}</td><td>${money(x.transfer)}</td><td>${money(x.purchases)}</td><td>${money(x.expenses)}</td><td><b>${money(x.net_total)}</b></td></tr>`).join('')}</tbody></table></div></section>`;
+  return;
+ }
+ if(tab==='purchases'){
+  const s=d.purchase_summary||{},rows=d.purchases||[];
+  state.cache.shopCurrentRows=rows;
+  area.innerHTML=`<div class="toolbar"><button class="btn btn-outline" id="openPurchases">فتح إدارة المشتريات</button></div>
+  <div class="metrics">${shopMetric('عدد الفواتير',number(s.invoice_count))}${shopMetric('الإجمالي',money(s.total))}${shopMetric('المسدد',money(s.paid))}${shopMetric('المتبقي',money(s.remaining))}</div>
+  <section class="panel"><div class="panel-head"><h3>مشتريات المخزون والموردون</h3></div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>الفاتورة</th><th>التاريخ</th><th>المورد</th><th>الكود</th><th>الصنف</th><th>الكمية</th><th>تكلفة الوحدة</th><th>الإجمالي</th><th>المسدد</th><th>المتبقي</th><th>السداد</th><th>إجراء</th></tr></thead>
+  <tbody>${rows.map(x=>`<tr><td>${escapeHtml(x.po_no)}</td><td>${dateOnly(x.invoice_date)}</td><td>${escapeHtml(x.supplier_name)}</td><td>${escapeHtml(x.sku)}</td><td>${escapeHtml(x.product_name)}</td><td>${number(x.qty)}</td><td>${money(x.unit_price)}</td><td>${money(x.invoice_total)}</td><td>${money(x.paid_amount)}</td><td>${money(x.remaining_amount)}</td><td>${shopStatus(x.payment_status==='paid'?'مدفوع':x.payment_status==='partial'?'جزئي':'غير مدفوع')}</td><td>${Number(x.remaining_amount)>0?`<button class="mini-btn" data-purchase-pay="${x.id}" data-remaining="${x.remaining_amount}">دفعة</button>`:'—'}</td></tr>`).join('')}</tbody></table></div></section>`;
+  $('#openPurchases').onclick=()=>renderPage('purchases');
+  $$('[data-purchase-pay]').forEach(b=>b.onclick=()=>shopPurchasePaymentForm(b.dataset.purchasePay,Number(b.dataset.remaining)));
+  return;
+ }
+ if(tab==='expenses'){
+  const s=d.expense_summary||{},rows=d.expenses||[];
+  state.cache.shopCurrentRows=rows;
+  area.innerHTML=`<div class="toolbar"><button class="btn btn-primary" id="addExpense">إضافة مصروف / نثرية</button></div>
+  <div class="metrics">${shopMetric('عدد المصروفات',number(s.count))}${shopMetric('إجمالي المصروفات',money(s.total))}</div>
+  <section class="panel"><div class="panel-head"><h3>المصروفات والنثريات</h3></div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>التاريخ</th><th>النوع</th><th>البيان</th><th>طريقة الدفع</th><th>المبلغ</th><th>ملاحظات</th></tr></thead>
+  <tbody>${rows.map(x=>`<tr><td>${dateOnly(x.expense_date)}</td><td>${escapeHtml(x.category||'—')}</td><td>${escapeHtml(x.description||'—')}</td><td>${escapeHtml(shopPaymentLabel(x.payment_method))}</td><td>${money(x.amount)}</td><td>${escapeHtml(x.notes||'')}</td></tr>`).join('')}</tbody></table></div></section>`;
+  $('#addExpense').onclick=shopExpenseForm;
+  return;
+ }
+ if(tab==='drivers'){
+  const s=d.delivery_summary||{},rows=d.delivery_logs||[];
+  state.cache.shopCurrentRows=rows;
+  area.innerHTML=`<div class="toolbar"><button class="btn btn-primary" id="addDriverLog">إضافة سجل توصيل</button></div>
+  <div class="metrics">${shopMetric('عدد السجلات',number(s.records_count))}${shopMetric('إجمالي المشاوير',number(s.trips_total))}${shopMetric('إجمالي المبالغ',money(s.amount_total))}</div>
+  <section class="panel"><div class="panel-head"><h3>كشف توصيل المندوبين</h3></div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>المندوب</th><th>التاريخ</th><th>كم مشوار</th><th>المبلغ</th><th>ملاحظات</th><th>الإجراءات</th></tr></thead>
+  <tbody>${rows.map(x=>`<tr><td><b>${escapeHtml(x.driver_name)}</b><small>${escapeHtml(x.delivery_log_no)}</small></td><td>${dateOnly(x.delivery_date)}</td><td>${number(x.trips_count)}</td><td>${money(x.amount)}</td><td>${escapeHtml(x.notes||'')}</td><td><button class="mini-btn" data-driver-log-edit="${x.id}">تعديل</button><button class="mini-btn danger-lite" data-driver-log-delete="${x.id}">حذف</button></td></tr>`).join('')}</tbody></table></div></section>`;
+  $('#addDriverLog').onclick=()=>shopDriverLogForm();
+  $$('[data-driver-log-edit]').forEach(b=>b.onclick=()=>shopDriverLogForm(rows.find(x=>x.id===b.dataset.driverLogEdit)));
+  $$('[data-driver-log-delete]').forEach(b=>b.onclick=()=>shopDeleteDriverLog(b.dataset.driverLogDelete));
+  return;
+ }
+ if(tab==='payroll'){
+  const s=d.payroll_summary||{},rows=d.payroll||[];
+  state.cache.shopCurrentRows=rows;
+  area.innerHTML=`<div class="toolbar"><button class="btn btn-outline" id="openPayroll">فتح مسير الرواتب</button></div>
+  <div class="metrics">${shopMetric('عدد الموظفين',number(s.employee_count))}${shopMetric('أيام الاستحقاق',number(s.eligible_days))}${shopMetric('الغياب',number(s.absent_days))}${shopMetric('الراتب الأساسي',money(s.basic_total))}${shopMetric('الخصومات',money(s.deductions_total))}${shopMetric('الحوافز',money(s.incentives_total))}${shopMetric('صافي الرواتب',money(s.net_total))}</div>
+  <section class="panel"><div class="panel-head"><h3>كشف رواتب الموظفين</h3></div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>العامل</th><th>متى بدأ</th><th>متى انتهى</th><th>أيام العمل</th><th>الأيام المستحقة</th><th>غياب</th><th>الراتب الأساسي</th><th>خصومات</th><th>حوافز</th><th>جبر الكسور</th><th>صافي الراتب</th><th>ملاحظات</th></tr></thead>
+  <tbody>${rows.map(x=>`<tr><td><b>${escapeHtml(x.employee_name)}</b><small>${escapeHtml(x.employee_no||'')}</small></td><td>${dateOnly(x.hire_date)}</td><td>${dateOnly(x.end_date)}</td><td>${number(x.present_days)}</td><td>${number(x.eligible_days)}</td><td>${number(x.absent_days)}</td><td>${money(x.base_salary)}</td><td>${money(x.deductions_total)}</td><td>${money(x.incentives_total)}</td><td>${money(x.rounding_adjustment)}</td><td><b>${money(x.net_salary)}</b></td><td>${escapeHtml(x.notes||'')}</td></tr>`).join('')}</tbody></table></div></section>`;
+  $('#openPayroll').onclick=()=>renderPage('payroll');
+  return;
+ }
+ if(tab==='inventory'){
+  const s=d.inventory_summary||{},rows=d.inventory||[];
+  state.cache.shopCurrentRows=rows;
+  area.innerHTML=`<div class="toolbar"><button class="btn btn-outline" id="openInventory">فتح المخزون</button></div>
+  <div class="metrics">${shopMetric('إجمالي الأصناف',number(s.item_count))}${shopMetric('إجمالي القطع',number(s.pieces_total))}${shopMetric('إجمالي الشراء',money(s.purchase_total))}${shopMetric('إجمالي البيع المتوقع',money(s.sale_total))}${shopMetric('الربح المتوقع',money(s.expected_profit))}${shopMetric('منخفضة / نافدة',number(s.low_count))}</div>
+  <section class="panel"><div class="panel-head"><h3>كشف الجرد وقيمة المخزون</h3></div>
+  <div class="table-wrap"><table class="data-table"><thead><tr><th>النوع</th><th>السعر</th><th>الكمية</th><th>سعر البيع</th><th>سعر الشراء</th><th>إجمالي الشراء</th><th>إجمالي البيع</th><th>الربح المتوقع</th><th>المخزون</th><th>حالة الربح</th><th>ملاحظات</th></tr></thead>
+  <tbody>${rows.map(x=>`<tr><td><b>${escapeHtml(x.name_ar)}</b><small>${escapeHtml(x.sku)}</small></td><td>${money(x.sale_price)}</td><td>${number(x.current_qty)}</td><td>${money(x.sale_price)}</td><td>${money(x.purchase_price)}</td><td>${money(x.purchase_total)}</td><td>${money(x.sale_total)}</td><td>${money(x.expected_profit)}</td><td>${shopStatus(x.stock_status)}</td><td>${shopStatus(x.profit_status)}</td><td>${escapeHtml(x.notes||'')}</td></tr>`).join('')}</tbody></table></div></section>`;
+  $('#openInventory').onclick=()=>renderPage('inventory');
+ }
+}
+function shopCustodyForm(row=null){
+ openForm(row?'تعديل العهدة':'إضافة عهدة',`<form class="form-grid">
+  <label>الاسم<input name="holder_name" value="${escapeHtml(row?.holder_name||'')}" required></label>
+  <label>التاريخ<input type="date" name="custody_date" value="${escapeHtml(row?.custody_date||new Date().toISOString().slice(0,10))}" required></label>
+  <label>العهدة<input type="number" min="0" step="0.01" name="custody_amount" value="${Number(row?.custody_amount||0)}" required></label>
+  <label>قيمة الفواتير<input type="number" min="0" step="0.01" name="invoices_amount" value="${Number(row?.invoices_amount||0)}"></label>
+  <label class="span-2">ملاحظات<textarea name="notes">${escapeHtml(row?.notes||'')}</textarea></label>
+  <div class="span-2 demo-note">المتبقي وحالة التصفية يحسبان تلقائيًا.</div>
+  <button class="btn btn-primary span-2" type="submit">حفظ العهدة</button>
+ </form>`,async b=>{
+  await api(row?`/api/shop-system/custodies/${row.id}`:'/api/shop-system/custodies',{method:row?'PUT':'POST',body:b});
+  toast('تم حفظ العهدة');await renderShopBooks({month:state.cache.shopMonth,tab:'custodies'});
+ });
+}
+async function shopDeleteCustody(id){
+ const reason=prompt('سبب حذف العهدة:');if(!reason)return;
+ if(!confirm('حذف العهدة مع حفظ سجل التعديلات؟'))return;
+ await api(`/api/shop-system/custodies/${id}`,{method:'DELETE',body:{reason}});
+ toast('تم حذف العهدة');await renderShopBooks({month:state.cache.shopMonth,tab:'custodies'});
+}
+function shopDriverLogForm(row=null){
+ const drivers=state.cache.shopSystem?.drivers||[];
+ openForm(row?'تعديل سجل التوصيل':'إضافة سجل توصيل',`<form class="form-grid">
+  <label>المندوب<select name="driver_id"><option value="">كتابة الاسم يدويًا</option>${drivers.map(d=>`<option value="${d.id}" ${d.id===row?.driver_id?'selected':''}>${escapeHtml(d.name)}</option>`).join('')}</select></label>
+  <label>اسم المندوب<input name="driver_name" value="${escapeHtml(row?.driver_name||'')}" placeholder="يُملأ تلقائيًا أو اكتب الاسم"></label>
+  <label>التاريخ<input type="date" name="delivery_date" value="${escapeHtml(row?.delivery_date||new Date().toISOString().slice(0,10))}" required></label>
+  <label>عدد المشاوير<input type="number" min="0" step="1" name="trips_count" value="${Number(row?.trips_count||0)}"></label>
+  <label>المبلغ<input type="number" min="0" step="0.01" name="amount" value="${Number(row?.amount||0)}"></label>
+  <label>ملاحظات<input name="notes" value="${escapeHtml(row?.notes||'')}"></label>
+  <button class="btn btn-primary span-2" type="submit">حفظ السجل</button>
+ </form>`,async b=>{
+  await api(row?`/api/shop-system/deliveries/${row.id}`:'/api/shop-system/deliveries',{method:row?'PUT':'POST',body:b});
+  toast('تم حفظ سجل التوصيل');await renderShopBooks({month:state.cache.shopMonth,tab:'drivers'});
+ });
+}
+async function shopDeleteDriverLog(id){
+ const reason=prompt('سبب حذف سجل التوصيل:');if(!reason)return;
+ await api(`/api/shop-system/deliveries/${id}`,{method:'DELETE',body:{reason}});
+ toast('تم حذف السجل');await renderShopBooks({month:state.cache.shopMonth,tab:'drivers'});
+}
+function shopExpenseForm(){
+ openForm('إضافة مصروف أو نثرية',`<form class="form-grid">
+  <label>التاريخ<input type="date" name="expense_date" value="${new Date().toISOString().slice(0,10)}" required></label>
+  <label>نوع المصروف<select name="category"><option>إيجار</option><option>رواتب</option><option>كهرباء</option><option>مياه</option><option>توصيل</option><option>نثريات</option><option>صيانة</option><option>تسويق</option><option>أخرى</option></select></label>
+  <label class="span-2">البيان<input name="description" required></label>
+  <label>طريقة الدفع<select name="payment_method"><option value="cash">كاش</option><option value="mada">شبكة</option><option value="bank_transfer">تحويل</option></select></label>
+  <label>المبلغ<input type="number" min="0.01" step="0.01" name="amount" required></label>
+  <label class="span-2">ملاحظات<textarea name="notes"></textarea></label>
+  <button class="btn btn-primary span-2" type="submit">حفظ المصروف</button>
+ </form>`,async b=>{
+  await api('/api/shop-system/expenses',{method:'POST',body:b});
+  toast('تم تسجيل المصروف');await renderShopBooks({month:state.cache.shopMonth,tab:'expenses'});
+ });
+}
+function shopBookingPaymentForm(id,name,remaining){
+ openForm(`دفعة حجز — ${name}`,`<form class="form-grid single">
+  <div class="demo-note">المتبقي الحالي: <b>${money(remaining)}</b></div>
+  <label>المبلغ<input type="number" name="amount" min="0.01" max="${remaining}" step="0.01" required></label>
+  <label>طريقة الدفع<select name="method"><option value="cash">كاش</option><option value="mada">شبكة</option><option value="bank_transfer">تحويل</option></select></label>
+  <label>ملاحظات<input name="notes"></label>
+  <button class="btn btn-primary" type="submit">تسجيل الدفعة</button>
+ </form>`,async b=>{
+  await api('/api/shop-system/booking-payment',{method:'POST',body:{booking_id:id,...b}});
+  toast('تم تسجيل دفعة الحجز');await renderShopBooks({month:state.cache.shopMonth,tab:'bookings'});
+ });
+}
+function shopPurchasePaymentForm(id,remaining){
+ openForm('تسجيل دفعة مشتريات',`<form class="form-grid single">
+  <div class="demo-note">المتبقي الحالي: <b>${money(remaining)}</b></div>
+  <label>المبلغ<input type="number" name="amount" min="0.01" max="${remaining}" step="0.01" required></label>
+  <label>ملاحظات<input name="notes"></label>
+  <button class="btn btn-primary" type="submit">تسجيل الدفعة</button>
+ </form>`,async b=>{
+  await api('/api/shop-system/purchase-payment',{method:'POST',body:{purchase_order_id:id,...b}});
+  toast('تم تسجيل دفعة المشتريات');await renderShopBooks({month:state.cache.shopMonth,tab:'purchases'});
+ });
+}
 
 async function renderDashboard(){
   const d=await api('/api/dashboard');const m=d.metrics;
