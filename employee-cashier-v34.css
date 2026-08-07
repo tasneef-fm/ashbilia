@@ -1,0 +1,22 @@
+/* V34 — بوابة موظف كاشير فقط */
+body[data-portal="employee"].cashier-mode .sidebar{display:none!important}
+body[data-portal="employee"].cashier-mode .app-main{margin:0!important;width:100%!important;max-width:none!important}
+body[data-portal="employee"].cashier-mode .app-view{display:block!important}
+body[data-portal="employee"].cashier-mode .topbar{position:sticky;top:0;z-index:20;padding:10px 16px;min-height:66px}
+body[data-portal="employee"].cashier-mode #menuBtn,
+body[data-portal="employee"].cashier-mode #notificationsBtn,
+body[data-portal="employee"].cashier-mode #backToStore{display:none!important}
+body[data-portal="employee"].cashier-mode .top-actions{margin-inline-start:auto}
+body[data-portal="employee"].cashier-mode .content{padding:12px;max-width:none!important}
+body[data-portal="employee"].cashier-mode .pos-layout{grid-template-columns:minmax(0,1fr) minmax(320px,420px);gap:12px;align-items:start}
+body[data-portal="employee"].cashier-mode .pos-products{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+body[data-portal="employee"].cashier-mode .cart-panel{position:sticky;top:78px;max-height:calc(100vh - 90px);overflow:auto}
+.cashier-user-pill{background:#f3e5bd!important;border-color:#d5aa5b!important;color:#5b431e!important}
+@media(max-width:850px){
+ body[data-portal="employee"].cashier-mode .topbar{padding:8px 10px}
+ body[data-portal="employee"].cashier-mode .topbar>div:first-of-type p{font-size:11px}
+ body[data-portal="employee"].cashier-mode .content{padding:8px}
+ body[data-portal="employee"].cashier-mode .pos-layout{grid-template-columns:1fr}
+ body[data-portal="employee"].cashier-mode .cart-panel{position:static;max-height:none}
+ body[data-portal="employee"].cashier-mode .pos-products{grid-template-columns:repeat(2,minmax(0,1fr))}
+}

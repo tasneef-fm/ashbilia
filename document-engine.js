@@ -75,7 +75,7 @@
     <div class="print-toolbar no-print"><button onclick="window.print()">طباعة</button><button id="pdfBtn">تنزيل PDF</button><button id="shareBtn">إرسال/مشاركة</button><button onclick="window.close()">إغلاق</button></div>
     <main id="document" class="document ${watermark?'watermarked':''}" data-watermark="${esc(watermark)}">
       <header class="doc-header"><img src="${esc(business.logo)}" alt="شعار وردة أشبيليا"><div><h1>${esc(business.name_ar)}</h1><h2>${esc(business.name_en)}</h2><p>${esc([business.phone,business.email,business.address].filter(Boolean).join(' · '))}</p></div><div class="doc-title"><strong>${esc(title)}</strong><span>${esc(number)}</span></div></header>
-      <section class="identity-line">${business.tax_no?`<span>الرقم الضريبي: ${esc(business.tax_no)}</span>`:''}${business.commercial_register?`<span>السجل التجاري: ${esc(business.commercial_register)}</span>`:''}<span>أصدره: ${esc(window.opener?.document?.querySelector('#userName')?.textContent||'النظام')}</span>${showQr?'<div id="qr" class="qr"></div>':''}</section>
+      <section class="identity-line">${business.tax_no?`<span>الرقم الضريبي: ${esc(business.tax_no)}</span>`:''}${business.commercial_register?`<span>السجل التجاري: ${esc(business.commercial_register)}</span>`:''}<span>الكاشير: ${esc(h.cashier_name||window.opener?.document?.querySelector('#userName')?.textContent||'النظام')}</span>${showQr?'<div id="qr" class="qr"></div>':''}</section>
       <section class="doc-meta">${meta.map(([k,v])=>`<div><span>${esc(k)}</span><b>${esc(v)}</b></div>`).join('')}</section>
       ${table}
       ${doc.show_totals===false?'':totals(t)}

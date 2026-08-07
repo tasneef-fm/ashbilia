@@ -407,7 +407,13 @@ window.WardatBackend = (() => {
 
     // الطلبات ونقطة البيع
     if (p === '/api/orders' && method === 'GET') {const search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u);let q=c.from('v_orders').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,to);if(search)q=q.or(`order_no.ilike.%${search}%,customer_name.ilike.%${search}%,phone.ilike.%${search}%`);const result=await q;return pagedResult(unwrap(result),result.count,page,pageSize);}
-    if (p === '/api/orders' && method === 'POST') return await rpc('create_pos_order_v27', { p_payload: body });
+    if (p === '/api/orders' && method === 'POST') {
+      try { return await rpc('create_pos_order_v34', { p_payload: body }); }
+      catch (error) {
+        if (!/create_pos_order_v34|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||''))) throw error;
+        return await rpc('create_pos_order_v27', { p_payload: body });
+      }
+    }
     const orderDetailsV27Match=p.match(/^\/api\/orders\/([^/]+)\/details$/);
     if(orderDetailsV27Match&&method==='GET'){
       const item=unwrap(await c.from('v_orders').select('*').eq('id',orderDetailsV27Match[1]).single());
@@ -465,6 +471,9 @@ window.WardatBackend = (() => {
         p_is_active:!!body.is_active,
         p_reason:body.reason||''
       });
+    const employeeCashierMatch=p.match(/^\/api\/employees\/([^/]+)\/cashier-access$/);
+    if(employeeCashierMatch&&method==='POST')
+      return await rpc('set_employee_cashier_access_v34',{p_employee_id:employeeCashierMatch[1]});
 
     // الموردون والمشتريات
     if (p === '/api/suppliers' && method === 'GET') return { items: await rows('v_suppliers', '*', q => q.order('name')) };
@@ -612,7 +621,10 @@ window.WardatBackend = (() => {
 
 
     if (p === '/api/settings/financial' && method === 'POST') return await rpc('save_financial_settings',{p_payload:body});
-    const documentMatch=p.match(/^\/api\/documents\/([^/]+)\/([^/]+)$/);if(documentMatch&&method==='GET')return await rpc('get_print_document',{p_type:documentMatch[1],p_id:documentMatch[2]});
+    const documentMatch=p.match(/^\/api\/documents\/([^/]+)\/([^/]+)$/);if(documentMatch&&method==='GET'){
+      try{return await rpc('get_print_document_v34',{p_type:documentMatch[1],p_id:documentMatch[2]});}
+      catch(error){if(!/get_print_document_v34|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||'')))throw error;return await rpc('get_print_document',{p_type:documentMatch[1],p_id:documentMatch[2]});}
+    }
     const deleteMatch=p.match(/^\/api\/records\/([^/]+)\/([^/]+)\/soft-delete$/);if(deleteMatch&&method==='POST')return await rpc('soft_delete_record',{p_entity:deleteMatch[1],p_id:deleteMatch[2],p_reason:body.reason||''});
     const restoreMatch=p.match(/^\/api\/records\/([^/]+)\/([^/]+)\/restore$/);if(restoreMatch&&method==='POST')return await rpc('restore_record',{p_entity:restoreMatch[1],p_id:restoreMatch[2],p_reason:body.reason||''});
     const auditMatch=p.match(/^\/api\/records\/([^/]+)\/([^/]+)\/audit$/);if(auditMatch&&method==='GET')return {items:await rows('v_audit_logs','*',q=>q.eq('entity_id',auditMatch[2]).order('created_at',{ascending:false}).limit(100))};
