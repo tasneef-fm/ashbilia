@@ -1215,7 +1215,7 @@ function printEmployeeCredentials(rows){
 }
 async function openBulkEmployeeUsers(){
   if(!guard('users.create'))return;
-  let d;try{d=await api('/api/access/employee-users');}catch(err){return toast(`شغّل ملف V35 في Supabase أولًا: ${err.message}`,'error');}
+  let d;try{d=await api('/api/access/employee-users');}catch(err){return toast(`شغّل ملف إصلاح V36 في Supabase أولًا: ${err.message}`,'error');}
   const all=(d.items||[]).filter(x=>x.is_active!==false);
   const pending=all.filter(x=>!x.has_user_account);
   if(!pending.length)return toast('كل الموظفين لديهم حسابات دخول بالفعل');
@@ -1233,10 +1233,10 @@ async function openBulkEmployeeUsers(){
         const password=String(document.querySelector(`[data-pass-for="${r.employee_id}"]`)?.value||r.password);
         btn.textContent=`جاري الإنشاء ${i+1} / ${draft.length}`;
         try{
-          await api(`/api/access/employee-users/${r.employee_id}`,{method:'POST',body:{username,password,name:r.name,reason:'إنشاء جماعي لحسابات الموظفين V35'}});
+          await api(`/api/access/employee-users/${r.employee_id}`,{method:'POST',body:{username,password,name:r.name,reason:'إنشاء جماعي لحسابات الموظفين V36 بدون بريد'}});
           success.push({...r,username,password});
         }catch(error){failed.push({...r,error:error.message});}
-        await new Promise(resolve=>setTimeout(resolve,250));
+        await new Promise(resolve=>setTimeout(resolve,40));
       }
       const failedHtml=failed.length?`<div class="status red" style="margin-top:12px">تعذر إنشاء ${failed.length} حساب: ${failed.map(x=>`${escapeHtml(x.name)} (${escapeHtml(x.error)})`).join('، ')}</div>`:'';
       $('#formModalContent').innerHTML=`<h2>نتيجة إنشاء يوزرات الموظفين</h2><div class="metrics">${metricHtml('تم الإنشاء',success.length)}${metricHtml('تعذر',failed.length)}</div>${failedHtml}<div class="table-wrap"><table class="data-table"><thead><tr><th>الموظف</th><th>اسم المستخدم</th><th>كلمة المرور المؤقتة</th></tr></thead><tbody>${success.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td dir="ltr"><b>${escapeHtml(r.username)}</b></td><td dir="ltr"><b>${escapeHtml(r.password)}</b></td></tr>`).join('')}</tbody></table></div><div class="toolbar">${success.length?'<button class="btn btn-primary" id="downloadEmployeeUsers">تنزيل كشف اليوزرات</button><button class="btn btn-outline" id="printEmployeeUsers">طباعة</button>':''}<button class="btn btn-outline" data-close="formModal">إغلاق</button></div>`;
