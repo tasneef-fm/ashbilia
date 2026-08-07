@@ -6,9 +6,9 @@
   <meta name="theme-color" content="#d5aa5b">
   <title>صفحة موظفي وردة أشبيليا</title>
   <link rel="icon" href="assets/logo.png">
-  <link rel="stylesheet" href="styles.css?v=20260807-v27-unified-pos">
+  <link rel="stylesheet" href="styles.css?v=20260807-v35-employee-users">
   <link rel="stylesheet" href="excel-mode-v28.css?v=20260807-v28-excel-mode">
-  <link rel="stylesheet" href="employee-cashier-v34.css?v=20260807-v34-employee-cashier">
+  <link rel="stylesheet" href="employee-cashier-v34.css?v=20260807-v35-employee-users">
 </head>
 <body data-portal="employee">
   <div id="toast" class="toast"></div>
@@ -25,7 +25,7 @@
         <h1>دخول الموظفين</h1>
         <p>هذه الصفحة مخصصة لموظفي الكاشير. بعد تسجيل الدخول تظهر شاشة البيع فقط، وتسجل الفاتورة باسم الموظف تلقائيًا.</p>
         <form id="loginForm" class="form-grid single">
-          <label>البريد الإلكتروني<input type="email" name="email" autocomplete="username" required></label>
+          <label>اسم المستخدم أو البريد الإلكتروني<input type="text" name="email" autocomplete="username" required placeholder="مثال: emp001"></label>
           <label>كلمة المرور<input type="password" name="password" autocomplete="current-password" required></label>
           <button class="btn btn-primary" type="submit">تسجيل الدخول</button>
         </form>
@@ -45,7 +45,7 @@
       <header class="topbar">
         <button class="menu-btn" id="menuBtn">☰</button>
         <div><h1 id="pageTitle">الكاشير</h1><p id="pageSubtitle">واجهة البيع الخاصة بالموظف</p></div>
-        <div class="top-actions"><button class="icon-btn" id="refreshBtn">تحديث</button><button class="icon-btn" id="notificationsBtn">الإشعارات <b id="notificationCount">0</b></button><button class="btn btn-outline" id="backToStore">صفحة العميل</button><button class="btn btn-outline" id="logoutTopBtn">تسجيل الخروج</button></div>
+        <div class="top-actions"><button class="icon-btn" id="changePasswordBtn">تغيير كلمة المرور</button><button class="icon-btn" id="refreshBtn">تحديث</button><button class="icon-btn" id="notificationsBtn">الإشعارات <b id="notificationCount">0</b></button><button class="btn btn-outline" id="backToStore">صفحة العميل</button><button class="btn btn-outline" id="logoutTopBtn">تسجيل الخروج</button></div>
       </header>
       <main id="content" class="content"></main>
     </div>
@@ -53,16 +53,16 @@
 
   <div id="formModal" class="modal hidden"><div class="modal-card wide-card"><button class="modal-close" data-close="formModal">×</button><div id="formModalContent"></div></div></div>
 
-  <script src="config.js?v=20260807-v27-unified-pos"></script>
+  <script src="config.js?v=20260807-v35-employee-users"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="permissions-service.js?v=20260807-v27-unified-pos"></script>
-  <script src="supabase-api.js?v=20260807-v27-unified-pos"></script>
-  <script src="financial-engine.js?v=20260807-v27-unified-pos"></script>
-  <script src="document-engine.js?v=20260807-v27-unified-pos"></script>
+  <script src="permissions-service.js?v=20260807-v35-employee-users"></script>
+  <script src="supabase-api.js?v=20260807-v35-employee-users"></script>
+  <script src="financial-engine.js?v=20260807-v35-employee-users"></script>
+  <script src="document-engine.js?v=20260807-v35-employee-users"></script>
   <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
-  <script src="app.js?v=20260807-v27-unified-pos"></script>
-  <script src="barcode-scanner-v27.js?v=20260807-v27-unified-pos"></script>
-  <script src="store-v27.js?v=20260807-v27-unified-pos"></script>
+  <script src="app.js?v=20260807-v35-employee-users"></script>
+  <script src="barcode-scanner-v27.js?v=20260807-v35-employee-users"></script>
+  <script src="store-v27.js?v=20260807-v35-employee-users"></script>
 </body>
 </html>

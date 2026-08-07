@@ -206,10 +206,22 @@ function bindGlobal(){
   if ($('#loginForm')) $('#loginForm').onsubmit=login;
   if ($('#logoutBtn')) $('#logoutBtn').onclick=logout;
   if ($('#logoutTopBtn')) $('#logoutTopBtn').onclick=logout;
+  if ($('#changePasswordBtn')) $('#changePasswordBtn').onclick=openChangePassword;
   if ($('#backToStore')) $('#backToStore').onclick=()=>window.location.href='index.html';
   if ($('#menuBtn')) $('#menuBtn').onclick=()=>$('.sidebar')?.classList.toggle('open');
   if ($('#refreshBtn')) $('#refreshBtn').onclick=()=>state.currentPage&&renderPage(state.currentPage,true);
   if ($('#notificationsBtn')) $('#notificationsBtn').onclick=renderNotifications;
+}
+function openChangePassword(){
+  openForm('تغيير كلمة المرور',`<form class="form-grid single" id="changePasswordForm">
+    <label>كلمة المرور الجديدة<input type="password" name="password" minlength="10" required autocomplete="new-password"></label>
+    <label>تأكيد كلمة المرور<input type="password" name="confirm_password" minlength="10" required autocomplete="new-password"></label>
+    <button class="btn btn-primary" type="submit">حفظ كلمة المرور</button>
+  </form>`,async b=>{
+    if(b.password!==b.confirm_password)throw new Error('تأكيد كلمة المرور غير مطابق');
+    await api('/api/auth/change-password',{method:'POST',body:{password:b.password}});
+    toast('تم تغيير كلمة المرور');
+  });
 }
 async function loadPublic(){state.publicData=await api('/api/public/bootstrap');}
 function renderStore(){
@@ -1146,6 +1158,7 @@ async function renderEmployees(){
   $('#content').innerHTML=`<div class="toolbar">
     <input class="search" id="employeeSearch" placeholder="ابحث بالاسم أو الكود أو الجوال أو القسم">
     ${can('employees.create')?'<button class="btn btn-primary" id="addEmployee">إضافة موظف</button>':''}
+    ${can('users.create')?'<button class="btn btn-outline" id="createAllEmployeeUsers">إنشاء يوزرات لكل الموظفين</button>':''}
   </div>
   <div class="metrics">
     ${metricHtml('إجمالي الموظفين',items.length)}
@@ -1162,6 +1175,7 @@ async function renderEmployees(){
     </table></div>
   </section>`;
   $('#addEmployee')?.addEventListener('click',()=>employeeForm());
+  $('#createAllEmployeeUsers')?.addEventListener('click',openBulkEmployeeUsers);
   $('#employeeSearch').oninput=e=>{
     const q=normalizeSmartText(e.target.value);
     const filtered=items.filter(x=>!q||normalizeSmartText(`${x.name} ${x.employee_no||''} ${x.phone||''} ${x.department||''} ${x.job_title||''}`).includes(q));
@@ -1170,6 +1184,68 @@ async function renderEmployees(){
   };
   bindEmployeeActions();
 }
+
+function employeeUsernameSuggestion(e,index=0){
+  const raw=String(e.employee_no||'').toLowerCase();
+  const digits=(raw.match(/(\d{1,6})(?!.*\d)/)||[])[1];
+  if(digits)return `emp${digits.padStart(3,'0')}`;
+  return `emp${String(index+1).padStart(3,'0')}`;
+}
+function generateEmployeeTempPassword(){
+  const letters='ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  const digits='23456789';
+  const all=letters+digits;
+  const bytes=new Uint32Array(8);crypto.getRandomValues(bytes);
+  let tail='';for(let i=0;i<8;i++)tail+=all[bytes[i]%all.length];
+  return `Wa@${tail}7`;
+}
+function employeeCredentialsCsv(rows){
+  const esc=v=>`"${String(v??'').replaceAll('"','""')}"`;
+  const lines=[['اسم الموظف','كود الموظف','اسم المستخدم','كلمة المرور المؤقتة','صفحة الدخول'].map(esc).join(',')];
+  rows.forEach(r=>lines.push([r.name,r.employee_no,r.username,r.password,'employee.html'].map(esc).join(',')));
+  return '\uFEFF'+lines.join('\r\n');
+}
+function downloadEmployeeCredentials(rows){
+  const blob=new Blob([employeeCredentialsCsv(rows)],{type:'text/csv;charset=utf-8'});
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=`employee-logins-${new Date().toISOString().slice(0,10)}.csv`;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function printEmployeeCredentials(rows){
+  const w=window.open('','_blank','width=900,height=700');if(!w)return toast('اسمح بالنوافذ المنبثقة للطباعة','error');
+  w.document.write(`<html dir="rtl"><head><meta charset="utf-8"><title>يوزرات الموظفين</title><style>body{font-family:Arial;padding:24px}table{width:100%;border-collapse:collapse}th,td{border:1px solid #bbb;padding:8px;text-align:center}th{background:#eee}h2{text-align:center}</style></head><body><h2>يوزرات موظفي وردة أشبيليا</h2><table><thead><tr><th>الموظف</th><th>الكود</th><th>اسم المستخدم</th><th>كلمة المرور المؤقتة</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.employee_no||'')}</td><td dir="ltr">${escapeHtml(r.username)}</td><td dir="ltr">${escapeHtml(r.password)}</td></tr>`).join('')}</tbody></table></body></html>`);w.document.close();w.focus();setTimeout(()=>w.print(),300);
+}
+async function openBulkEmployeeUsers(){
+  if(!guard('users.create'))return;
+  let d;try{d=await api('/api/access/employee-users');}catch(err){return toast(`شغّل ملف V35 في Supabase أولًا: ${err.message}`,'error');}
+  const all=(d.items||[]).filter(x=>x.is_active!==false);
+  const pending=all.filter(x=>!x.has_user_account);
+  if(!pending.length)return toast('كل الموظفين لديهم حسابات دخول بالفعل');
+  const draft=pending.map((e,i)=>({...e,username:e.suggested_username||employeeUsernameSuggestion(e,i),password:generateEmployeeTempPassword()}));
+  openForm('إنشاء يوزرات لكل الموظفين',`<div class="span-2 demo-note">سيتم إنشاء ${draft.length} حساب كاشير. احتفظ بكشف كلمات المرور بعد الإنشاء؛ النظام لا يخزن كلمات المرور كنص.</div><div class="span-2 table-wrap" style="max-height:430px"><table class="data-table"><thead><tr><th>الموظف</th><th>الكود</th><th>اسم المستخدم</th><th>كلمة المرور المؤقتة</th></tr></thead><tbody>${draft.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.employee_no||'')}</td><td dir="ltr"><input data-user-for="${r.employee_id}" value="${escapeHtml(r.username)}" style="min-width:110px"></td><td dir="ltr"><input data-pass-for="${r.employee_id}" value="${escapeHtml(r.password)}" style="min-width:160px"></td></tr>`).join('')}</tbody></table></div><div class="span-2"><button class="btn btn-primary" id="confirmBulkEmployeeUsers" type="button">إنشاء الحسابات الآن</button></div>`,()=>{});
+  setTimeout(()=>{
+    const btn=$('#confirmBulkEmployeeUsers');if(!btn)return;
+    btn.onclick=async()=>{
+      if(!confirm(`سيتم إنشاء ${draft.length} حساب موظف كاشير. متابعة؟`))return;
+      btn.disabled=true;btn.textContent='جاري إنشاء الحسابات...';
+      const success=[],failed=[];
+      for(let i=0;i<draft.length;i++){
+        const r=draft[i];
+        const username=String(document.querySelector(`[data-user-for="${r.employee_id}"]`)?.value||r.username).trim().toLowerCase();
+        const password=String(document.querySelector(`[data-pass-for="${r.employee_id}"]`)?.value||r.password);
+        btn.textContent=`جاري الإنشاء ${i+1} / ${draft.length}`;
+        try{
+          await api(`/api/access/employee-users/${r.employee_id}`,{method:'POST',body:{username,password,name:r.name,reason:'إنشاء جماعي لحسابات الموظفين V35'}});
+          success.push({...r,username,password});
+        }catch(error){failed.push({...r,error:error.message});}
+        await new Promise(resolve=>setTimeout(resolve,250));
+      }
+      const failedHtml=failed.length?`<div class="status red" style="margin-top:12px">تعذر إنشاء ${failed.length} حساب: ${failed.map(x=>`${escapeHtml(x.name)} (${escapeHtml(x.error)})`).join('، ')}</div>`:'';
+      $('#formModalContent').innerHTML=`<h2>نتيجة إنشاء يوزرات الموظفين</h2><div class="metrics">${metricHtml('تم الإنشاء',success.length)}${metricHtml('تعذر',failed.length)}</div>${failedHtml}<div class="table-wrap"><table class="data-table"><thead><tr><th>الموظف</th><th>اسم المستخدم</th><th>كلمة المرور المؤقتة</th></tr></thead><tbody>${success.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td dir="ltr"><b>${escapeHtml(r.username)}</b></td><td dir="ltr"><b>${escapeHtml(r.password)}</b></td></tr>`).join('')}</tbody></table></div><div class="toolbar">${success.length?'<button class="btn btn-primary" id="downloadEmployeeUsers">تنزيل كشف اليوزرات</button><button class="btn btn-outline" id="printEmployeeUsers">طباعة</button>':''}<button class="btn btn-outline" data-close="formModal">إغلاق</button></div>`;
+      if(success.length){$('#downloadEmployeeUsers').onclick=()=>downloadEmployeeCredentials(success);$('#printEmployeeUsers').onclick=()=>printEmployeeCredentials(success);}
+      await renderEmployees();
+    };
+  },0);
+}
+
 function employeeRows(items){
   if(!items.length)return '<tr><td colspan="9"><div class="empty">لا يوجد موظفون</div></td></tr>';
   return items.map(e=>`<tr>

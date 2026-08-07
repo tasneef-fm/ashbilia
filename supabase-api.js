@@ -206,7 +206,9 @@ window.WardatBackend = (() => {
 
     // المصادقة
     if (p === '/api/auth/login' && method === 'POST') {
-      const data = unwrap(await c.auth.signInWithPassword({ email: String(body.email || '').trim(), password: String(body.password || '') }));
+      const loginId = String(body.email || '').trim().toLowerCase();
+      const loginEmail = loginId.includes('@') ? loginId : `${loginId}@cashier.wardat.local`;
+      const data = unwrap(await c.auth.signInWithPassword({ email: loginEmail, password: String(body.password || '') }));
       const user = await profileFor(data.user);
       if (!user) {
         await c.auth.signOut();
@@ -216,6 +218,12 @@ window.WardatBackend = (() => {
     }
     if (p === '/api/auth/logout' && method === 'POST') {
       unwrap(await c.auth.signOut());currentAccess=null;
+      return { ok: true };
+    }
+    if (p === '/api/auth/change-password' && method === 'POST') {
+      const password = String(body.password || '');
+      if (password.length < 10) throw new Error('كلمة المرور الجديدة يجب ألا تقل عن 10 أحرف');
+      unwrap(await c.auth.updateUser({ password }));
       return { ok: true };
     }
     if (p === '/api/auth/me' && method === 'GET') {
@@ -474,6 +482,49 @@ window.WardatBackend = (() => {
     const employeeCashierMatch=p.match(/^\/api\/employees\/([^/]+)\/cashier-access$/);
     if(employeeCashierMatch&&method==='POST')
       return await rpc('set_employee_cashier_access_v34',{p_employee_id:employeeCashierMatch[1]});
+
+    if (p === '/api/access/employee-users' && method === 'GET') {
+      requireLocal('users.create');
+      return { items: await rpc('list_employee_cashier_accounts_v35') };
+    }
+    const employeeUserMatch=p.match(/^\/api\/access\/employee-users\/([^/]+)$/);
+    if(employeeUserMatch&&method==='POST'){
+      requireLocal('users.create');
+      const employeeId=employeeUserMatch[1];
+      const username=String(body.username||'').trim().toLowerCase();
+      const password=String(body.password||'');
+      if(!/^[a-z0-9._-]{3,32}$/.test(username))throw new Error('اسم المستخدم يجب أن يكون إنجليزيًا ويحتوي حروفًا أو أرقامًا فقط');
+      if(password.length<10)throw new Error('كلمة المرور يجب ألا تقل عن 10 أحرف');
+      const loginEmail=`${username}@cashier.wardat.local`;
+      const creationToken=crypto.randomUUID();
+      const tempClient=window.supabase.createClient(cfg.supabaseUrl,cfg.supabaseAnonKey,{
+        auth:{persistSession:false,autoRefreshToken:false,detectSessionInUrl:false,storageKey:`wardat-create-cashier-${crypto.randomUUID()}`},
+        global:{headers:{'x-application-name':'wardat-create-employee-cashier-v35'}}
+      });
+      const signResult=await tempClient.auth.signUp({
+        email:loginEmail,
+        password,
+        options:{data:{name:String(body.name||username),staff_creation_token:creationToken,employee_id:employeeId,username}}
+      });
+      if(signResult.error)throw new Error(translateError(signResult.error.message));
+      const createdUser=signResult.data?.user;
+      if(!createdUser?.id)throw new Error('تعذر إنشاء حساب الموظف داخل Supabase');
+      if(Array.isArray(createdUser.identities)&&createdUser.identities.length===0)throw new Error('اسم المستخدم مستخدم مسبقًا');
+      try{
+        const finalized=await rpc('finalize_employee_cashier_user_v35',{
+          p_target_user:createdUser.id,
+          p_creation_token:creationToken,
+          p_employee_id:employeeId,
+          p_username:username,
+          p_reason:String(body.reason||'إنشاء حساب كاشير للموظف')
+        });
+        try{await tempClient.auth.signOut({scope:'local'});}catch{}
+        return {...finalized,username,login_email:loginEmail};
+      }catch(error){
+        try{await tempClient.auth.signOut({scope:'local'});}catch{}
+        throw new Error(`${error.message}. تم إنشاء حساب مصادقة أولي وقد يحتاج مراجعة قبل إعادة المحاولة.`);
+      }
+    }
 
     // الموردون والمشتريات
     if (p === '/api/suppliers' && method === 'GET') return { items: await rows('v_suppliers', '*', q => q.order('name')) };
