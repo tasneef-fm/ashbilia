@@ -1,0 +1,37 @@
+/* V28 — عرض مبسط مستوحى من ملفات Excel المرجعية */
+.excel-workflow-mode .content{max-width:none}
+.excel-workflow-mode .shop-system-head{background:#fff;border:1px solid #d8dee8;border-radius:10px;padding:14px 16px;margin-bottom:8px;box-shadow:none}
+.excel-workflow-mode .shop-system-head h2{font-size:20px;margin:0 0 4px}
+.excel-workflow-mode .shop-system-head p{font-size:13px;margin:0;color:#5f6877}
+.excel-workflow-mode .shop-tabs{display:flex;gap:0;overflow-x:auto;border:1px solid #cfd6df;border-bottom:0;background:#f3f5f7;border-radius:8px 8px 0 0;padding:0}
+.excel-workflow-mode .shop-tab{border:0;border-left:1px solid #cfd6df;border-radius:0;background:#e9edf2;padding:10px 15px;white-space:nowrap;font-weight:700;color:#303846}
+.excel-workflow-mode .shop-tab.active{background:#fff;color:#176b45;border-top:3px solid #176b45;padding-top:7px}
+.excel-workflow-mode #shopTabArea{background:#fff;border:1px solid #cfd6df;padding:12px;border-radius:0 0 8px 8px}
+.excel-workflow-mode .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(145px,1fr));gap:0;border:1px solid #cfd6df;margin-bottom:12px}
+.excel-workflow-mode .metric-card{border-radius:0!important;box-shadow:none!important;border:0!important;border-left:1px solid #cfd6df!important;padding:10px 12px!important;min-height:76px;background:#fbfcfd!important}
+.excel-workflow-mode .metric-card small{font-size:12px;color:#495467}
+.excel-workflow-mode .metric-card strong{font-size:18px;color:#111827}
+.excel-workflow-mode .metric-card .trend{font-size:10px;color:#7b8491}
+.excel-workflow-mode .panel{border:1px solid #cfd6df;border-radius:4px;box-shadow:none;background:#fff}
+.excel-workflow-mode .panel-head{padding:9px 10px;border-bottom:1px solid #cfd6df;background:#f7f8fa}
+.excel-workflow-mode .panel-head h3{font-size:15px;margin:0}
+.excel-workflow-mode .table-wrap{border:0;border-radius:0;overflow:auto;max-height:64vh}
+.excel-workflow-mode .data-table{border-collapse:collapse;width:100%;min-width:max-content}
+.excel-workflow-mode .data-table th{position:sticky;top:0;z-index:2;background:#1f6d4b!important;color:white!important;font-size:12px!important;padding:8px 9px!important;border:1px solid #d0d6df!important;text-align:center;white-space:nowrap}
+.excel-workflow-mode .data-table td{background:#fff;padding:7px 9px!important;border:1px solid #d8dde5!important;font-size:12px!important;white-space:nowrap}
+.excel-workflow-mode .data-table tbody tr:nth-child(even) td{background:#fbfcfd}
+.excel-workflow-mode .data-table tbody tr:hover td{background:#fff7d6}
+.excel-workflow-mode .toolbar{background:#f7f8fa;border:1px solid #d8dde5;border-bottom:0;padding:8px;margin:0}
+.excel-workflow-mode .excel-inline-actions{display:flex;gap:6px;flex-wrap:wrap;margin-inline-start:auto}
+.excel-workflow-mode .shop-month-actions{display:flex;gap:6px;align-items:end;flex-wrap:wrap}
+.excel-workflow-mode .shop-month-actions label{font-size:11px}
+.excel-workflow-mode .shop-month-actions input{height:34px}
+@media(max-width:760px){
+ .excel-workflow-mode #shopTabArea{padding:6px}
+ .excel-workflow-mode .shop-system-head{padding:10px}
+ .excel-workflow-mode .shop-system-head p{display:none}
+ .excel-workflow-mode .shop-month-actions{width:100%}
+ .excel-workflow-mode .shop-month-actions .btn{padding:7px 9px;font-size:11px}
+ .excel-workflow-mode .metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+ .excel-workflow-mode .metric-card{min-height:68px}
+}
