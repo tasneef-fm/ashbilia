@@ -8,7 +8,7 @@ function portalForRole(roleCode='') {
   if (roleCode === 'customer') return 'customer';
   return ADMIN_ROLE_CODES.has(roleCode) ? 'admin' : 'employee';
 }
-function portalUrl(mode) { return mode === 'admin' ? 'admin.html' : mode === 'employee' ? 'employee.html' : 'index.html'; }
+function portalUrl(mode) { const base=mode === 'admin' ? 'admin.html' : mode === 'employee' ? 'employee.html' : 'index.html'; const q=new URLSearchParams(location.search); const start=q.get('start'); return start&&mode!=='customer'?`${base}?start=${encodeURIComponent(start)}${q.get('cashier')==='1'?'&cashier=1':''}`:base; }
 function availablePages() {
   let allowed = pages.filter(p => can(p.permission));
   if (PORTAL_MODE === 'employee') allowed = allowed.filter(p => EMPLOYEE_PAGE_IDS.has(p.id));
@@ -317,15 +317,15 @@ function addToCart(productId){const p=state.publicData.products.find(x=>x.id===p
 function updateCartCount(){$('#cartCount').textContent=state.cart.reduce((s,i)=>s+i.qty,0);}
 function renderCartDrawer(){
   $('#cartItems').innerHTML=state.cart.length?state.cart.map((i,idx)=>`<div class="cart-line"><div><b>${escapeHtml(i.name)}</b><small>${money(i.price)}</small></div><div class="qty-control"><button data-dec="${idx}">−</button><span>${i.qty}</span><button data-inc="${idx}">+</button></div><button class="mini-btn" data-remove="${idx}">حذف</button></div>`).join(''):`<div class="empty">السلة فارغة</div>`;
-  const subtotal=state.cart.reduce((s,i)=>s+i.price*i.qty,0),vat=subtotal*.15,total=subtotal+vat;
-  $('#cartTotals').innerHTML=`<div class="total-row"><span>قبل الضريبة</span><b>${money(subtotal)}</b></div><div class="total-row"><span>الضريبة 15%</span><b>${money(vat)}</b></div><div class="total-row grand"><span>الإجمالي</span><b>${money(total)}</b></div>`;
+  const subtotal=state.cart.reduce((s,i)=>s+i.price*i.qty,0),taxRate=Number(window.WardatFinancial?.config?.taxRate??0.15),vat=subtotal*taxRate,total=subtotal+vat;
+  $('#cartTotals').innerHTML=`<div class="total-row"><span>قبل الضريبة</span><b>${money(subtotal)}</b></div><div class="total-row"><span>الضريبة ${(taxRate*100).toFixed(2)}%</span><b>${money(vat)}</b></div><div class="total-row grand"><span>الإجمالي</span><b>${money(total)}</b></div>`;
   $$('[data-inc]','#cartItems').forEach(b=>b.onclick=()=>{const i=state.cart[+b.dataset.inc];const p=state.publicData.products.find(x=>x.id===i.product_id);if(i.qty>=Number(p.stock_qty)-Number(p.reserved_qty))return toast('الكمية غير متاحة','error');i.qty++;saveCart();renderCartDrawer();});
   $$('[data-dec]','#cartItems').forEach(b=>b.onclick=()=>{const i=state.cart[+b.dataset.dec];i.qty--;if(i.qty<=0)state.cart.splice(+b.dataset.dec,1);saveCart();renderCartDrawer();});
   $$('[data-remove]','#cartItems').forEach(b=>b.onclick=()=>{state.cart.splice(+b.dataset.remove,1);saveCart();renderCartDrawer();});show('cartDrawer');
 }
 async function checkout(e){e.preventDefault();const b=formDataObj(e.target);b.items=state.cart.map(i=>({product_id:i.product_id,qty:i.qty}));b.idempotency_key=crypto.randomUUID();const btn=$('button[type=submit]',e.target);btn.disabled=true;try{const {order}=await api('/api/public/orders',{method:'POST',body:b});state.cart=[];saveCart();hide('checkoutModal');e.target.reset();toast(`تم تسجيل طلبك بنجاح: ${order.order_no}`);await loadPublic();renderStore();}catch(err){toast(err.message,'error')}finally{btn.disabled=false;}}
 async function submitPublicBooking(e){e.preventDefault();const b=formDataObj(e.target);b.idempotency_key=crypto.randomUUID();const btn=$('button[type=submit]',e.target);btn.disabled=true;try{const {booking}=await api('/api/public/bookings',{method:'POST',body:b});hide('bookingModal');e.target.reset();toast(`تم استلام طلب الحجز: ${booking.booking_no}`);}catch(err){toast(err.message,'error')}finally{btn.disabled=false;}}
-function assistantRecommend(e){e.preventDefault();const b=formDataObj(e.target),budget=Number(b.budget)||0;let products=state.publicData.products.filter(p=>Number(p.sale_price)*1.15<=budget*1.15).sort((a,c)=>Math.abs(Number(a.sale_price)-budget)-Math.abs(Number(c.sale_price)-budget)).slice(0,3);if(!products.length)products=state.publicData.products.slice(0,3);$('#assistantResults').innerHTML=products.map((p,i)=>`<div class="assistant-option"><small>الخيار ${i+1}</small><h4>${escapeHtml(p.name_ar)}</h4><p>${escapeHtml(p.description||'خيار مناسب للمناسبة والألوان المختارة.')}</p><b>${money(Number(p.sale_price)*1.15)}</b><button class="btn btn-outline wide" data-assist-add="${p.id}">أضف للسلة</button></div>`).join('');$$('[data-assist-add]').forEach(x=>x.onclick=()=>addToCart(x.dataset.assistAdd));}
+function assistantRecommend(e){e.preventDefault();const b=formDataObj(e.target),budget=Number(b.budget)||0,taxRate=Number(window.WardatFinancial?.config?.taxRate??0.15),withTax=n=>Number(n||0)*(1+taxRate);let products=state.publicData.products.filter(p=>withTax(p.sale_price)<=budget*(1+taxRate)).sort((a,c)=>Math.abs(Number(a.sale_price)-budget)-Math.abs(Number(c.sale_price)-budget)).slice(0,3);if(!products.length)products=state.publicData.products.slice(0,3);$('#assistantResults').innerHTML=products.map((p,i)=>`<div class="assistant-option"><small>الخيار ${i+1}</small><h4>${escapeHtml(p.name_ar)}</h4><p>${escapeHtml(p.description||'خيار مناسب للمناسبة والألوان المختارة.')}</p><b>${money(withTax(p.sale_price))}</b><button class="btn btn-outline wide" data-assist-add="${p.id}">أضف للسلة</button></div>`).join('');$$('[data-assist-add]').forEach(x=>x.onclick=()=>addToCart(x.dataset.assistAdd));}
 
 async function login(e){
   e.preventDefault();
@@ -382,6 +382,9 @@ async function showApp(){
   if($('#portalHeaderSubtitle'))$('#portalHeaderSubtitle').textContent=PORTAL_MODE==='admin'?'الإدارة والمبيعات والتشغيل':'المهام والطلبات المسموحة حسب الصلاحية';
   renderNav();
   const allowed=availablePages();
+  const params=new URLSearchParams(location.search),requestedPage=params.get('start');
+  if(requestedPage&&allowed.some(p=>p.id===requestedPage))state.currentPage=requestedPage;
+  document.body.classList.toggle('cashier-mode',params.get('cashier')==='1'&&state.currentPage==='pos');
   if(!allowed.some(p=>p.id===state.currentPage))state.currentPage=allowed[0]?.id||null;
   if(state.currentPage)await renderPage(state.currentPage);
   else if($('#content'))$('#content').innerHTML='<div class="empty">لا توجد أقسام مسموحة لهذا المستخدم. راجع إدارة الصلاحيات.</div>';

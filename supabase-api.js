@@ -153,6 +153,28 @@ window.WardatBackend = (() => {
       throw error;
     }
   }
+  async function uploadExpenseReceipt(expenseId, file) {
+    requireLocal('reports.view_financial');
+    validateProductImageFile(file);
+    const c = ensureClient();
+    const extension = safeImageExtension(file);
+    const path = `${expenseId}/${Date.now()}-${crypto.randomUUID()}.${extension}`;
+    const uploadResult = await c.storage.from('expense-receipts').upload(path, file, {
+      cacheControl: '31536000', contentType: file.type, upsert: false
+    });
+    unwrap(uploadResult, 'تعذر رفع إيصال المصروف');
+    const publicUrl = c.storage.from('expense-receipts').getPublicUrl(path)?.data?.publicUrl;
+    if (!publicUrl) {
+      await c.storage.from('expense-receipts').remove([path]).catch(()=>{});
+      throw new Error('تعذر إنشاء رابط الإيصال');
+    }
+    try {
+      return await rpc('set_expense_receipt_v27', { p_expense_id: expenseId, p_url: publicUrl, p_storage_path: path });
+    } catch (error) {
+      await c.storage.from('expense-receipts').remove([path]).catch(()=>{});
+      throw error;
+    }
+  }
   async function deleteProductImage(imageId) {
     requireLocal(['products.manage_images','products.edit']);
     const result = await rpc('remove_product_image', { p_image_id: imageId });
@@ -240,14 +262,18 @@ window.WardatBackend = (() => {
         [/^\/api\/products\/[^/]+\/images(?:\/[^/]+)?$/, method==='GET'?'products.view':'products.manage_images'],
         [/^\/api\/products(?:\/[^/]+)?$/, method==='GET'?'products.view':method==='POST'?'products.create':'products.edit'],
         [/^\/api\/inventory$/, 'inventory.view'], [/^\/api\/inventory\/adjust$/, ['inventory.adjust','inventory.issue','inventory.receive']],
+        [/^\/api\/damage-records$/, method==='GET'?'damage.view':'damage.create'], [/^\/api\/damage-records\/[^/]+\/status$/, 'damage.approve'],
+        [/^\/api\/stocktakes$/, method==='GET'?'stocktake.view':'stocktake.create'], [/^\/api\/stocktakes\/[^/]+$/, 'stocktake.view'], [/^\/api\/stocktakes\/[^/]+\/count$/, 'stocktake.create'], [/^\/api\/stocktakes\/[^/]+\/approve$/, 'stocktake.approve'],
+        [/^\/api\/vat-report$/, 'vat.view'], [/^\/api\/excel-import(?:\/[^/]+)?$/, 'excel.import'], [/^\/api\/store-dashboard$/, 'dashboard.view'], [/^\/api\/supplier-payments$/, method==='GET'?'suppliers.view':'suppliers.pay'], [/^\/api\/sales-returns$/, method==='GET'?'orders.view':'orders.return'], [/^\/api\/purchase-returns$/, method==='GET'?'purchases.view':'purchases.create'],
+        [/^\/api\/products\/barcode\/[^/]+$/, 'products.view'],
         [/^\/api\/customers$/, method==='GET'?'customers.view':'customers.create'],
-        [/^\/api\/orders$/, method==='GET'?'orders.view':'pos.create_sale'], [/^\/api\/orders\/[^/]+$/, body.status==='cancelled'?'orders.cancel':body.status==='returned'?'orders.return':'orders.edit'],
+        [/^\/api\/orders$/, method==='GET'?'orders.view':'pos.create_sale'], [/^\/api\/orders\/[^/]+\/details$/, 'orders.view'], [/^\/api\/orders\/[^/]+$/, body.status==='cancelled'?'orders.cancel':body.status==='returned'?'orders.return':'orders.edit'],
         [/^\/api\/bookings\/product-options$/, ['bookings.create','bookings.edit','bookings.view']], [/^\/api\/bookings\/[^/]+\/details$/, 'bookings.view'], [/^\/api\/bookings$/, method==='GET'?'bookings.view':'bookings.create'], [/^\/api\/bookings\/[^/]+$/, method==='GET'?'bookings.view':method==='PUT'?'bookings.edit':body.status==='confirmed'?'bookings.approve':body.status==='cancelled'?'bookings.cancel':'bookings.edit'],
         [/^\/api\/quotations$/, method==='GET'?'quotations.view':'quotations.create'], [/^\/api\/quotations\/[^/]+\/approve$/, 'quotations.approve'],
         [/^\/api\/work-orders$/, method==='GET'?'workorders.view':'workorders.create'], [/^\/api\/work-orders\/[^/]+$/, ['workorders.edit','workorders.assign','workorders.update_status','workorders.upload_files','workorders.complete']],
         [/^\/api\/employees$/, ['employees.view','workorders.assign']],
         [/^\/api\/suppliers$/, method==='GET'?'suppliers.view':'suppliers.create'],
-        [/^\/api\/purchase-orders$/, method==='GET'?'purchases.view':'purchases.create'], [/^\/api\/purchase-orders\/[^/]+\/receive$/, 'purchases.receive'],
+        [/^\/api\/purchase-orders$/, method==='GET'?'purchases.view':'purchases.create'], [/^\/api\/purchase-orders\/[^/]+\/details$/, 'purchases.view'], [/^\/api\/purchase-orders\/[^/]+\/receive$/, 'purchases.receive'],
         [/^\/api\/smart\/suggestions$/, 'smart.view'], [/^\/api\/reports$/, 'reports.view'],
         [/^\/api\/notifications$/, 'notifications.view'], [/^\/api\/notifications\/read$/, 'notifications.resolve'],
         [/^\/api\/audit$/, 'audit.view'], [/^\/api\/attendance\/state$/, 'attendance.view'], [/^\/api\/attendance\/clock$/, 'attendance.clock'], [/^\/api\/attendance\/dashboard$/, 'attendance.view'], [/^\/api\/attendance\/month$/, 'attendance.view'], [/^\/api\/leaves\/types$/, 'leaves.view'], [/^\/api\/leaves$/, method==='GET'?'leaves.view':'leaves.create'], [/^\/api\/leaves\/[^/]+$/, 'leaves.approve'], [/^\/api\/payroll\/my-payslips$/, 'payroll.view_self'], [/^\/api\/payroll\/runs$/, method==='GET'?'payroll.view':'payroll.create'], [/^\/api\/payroll\/runs\/[^/]+$/, 'payroll.view'], [/^\/api\/payroll\/runs\/[^/]+\/calculate$/, 'payroll.recalculate'], [/^\/api\/payroll\/runs\/[^/]+\/status$/, 'payroll.approve'], [/^\/api\/payroll\/items\/[^/]+\/pay$/, 'payroll.pay'], [/^\/api\/compensation$/, method==='GET'?'compensation.view':'compensation.create'], [/^\/api\/compensation\/[^/]+\/[^/]+\/approve$/, 'compensation.approve'], [/^\/api\/filter-presets$/, method==='GET'?'filters.use':'filters.save'], [/^\/api\/data-quality$/, 'data_quality.view'], [/^\/api\/data-quality\/action$/, 'data_quality.resolve'], [/^\/api\/settings\/financial$/, method==='GET'?'settings.view':'settings.manage'], [/^\/api\/settings\/clear-demo$/, 'settings.clear_demo'], [/^\/api\/documents\//, 'documents.view'], [/^\/api\/records\//, method==='GET'?'audit.view':'records.soft_delete'],
@@ -260,10 +286,13 @@ window.WardatBackend = (() => {
 
     // لوحة الإدارة
     if (p === '/api/dashboard' && method === 'GET') return await rpc('get_dashboard');
-    if (p === '/api/shop-system' && method === 'GET')
-      return await rpc('get_shop_excel_system_v25',{
-        p_month:u.searchParams.get('month')||null
-      });
+    if (p === '/api/shop-system' && method === 'GET') {
+      const month=u.searchParams.get('month')||new Date().toISOString().slice(0,10);
+      const base=await rpc('get_shop_excel_system_v25',{p_month:month});
+      const start=`${String(month).slice(0,7)}-01`;const d0=new Date(`${start}T12:00:00`);const end=new Date(d0.getFullYear(),d0.getMonth()+1,0,12).toISOString().slice(0,10);
+      const [dash,daily]=await Promise.all([rpc('get_store_dashboard_v27',{p_from:start,p_to:end}),rpc('get_daily_sales_v27',{p_month:month})]);
+      return {...base,dashboard:{...(base.dashboard||{}),...dash},daily_sales:daily.items||[],daily_summary:daily.summary||base.daily_summary,v27_accounting:true};
+    }
     if (p === '/api/shop-system/custodies' && method === 'POST')
       return await rpc('upsert_cash_custody_v25',{p_id:null,p_payload:body});
     const shopCustodyMatch=p.match(/^\/api\/shop-system\/custodies\/([^/]+)$/);
@@ -284,9 +313,9 @@ window.WardatBackend = (() => {
         p_method:body.method||'cash',p_notes:body.notes||null
       });
     if (p === '/api/shop-system/purchase-payment' && method === 'POST')
-      return await rpc('record_purchase_payment_v25',{
-        p_purchase_order_id:body.purchase_order_id,
-        p_amount:Number(body.amount),p_notes:body.notes||null
+      return await rpc('record_supplier_payment_v27',{
+        p_purchase_order_id:body.purchase_order_id,p_amount:Number(body.amount),p_method:body.method||'cash',
+        p_transaction_ref:body.transaction_ref||null,p_notes:body.notes||null,p_idempotency_key:body.idempotency_key||crypto.randomUUID()
       });
     if (p === '/api/shop-system/expenses' && method === 'POST')
       return await rpc('create_expense_v25',{p_payload:body});
@@ -304,6 +333,12 @@ window.WardatBackend = (() => {
       const result=await q;const data=unwrap(result);return {...pagedResult(flattenProducts(data),result.count,page,pageSize)};
     }
     if (p === '/api/products' && method === 'POST') return await rpc('upsert_product_v21', { p_id: null, p_payload: body });
+    const barcodeProductMatch = p.match(/^\/api\/products\/barcode\/([^/]+)$/);
+    if (barcodeProductMatch && method === 'GET') {
+      const code=decodeURIComponent(barcodeProductMatch[1]);
+      const data=unwrap(await c.from('v_products').select('*').eq('barcode',code).eq('is_active',true).limit(1));
+      return {item:flattenProducts(data||[])[0]||null};
+    }
     const productImagesMatch = p.match(/^\/api\/products\/([^/]+)\/images$/);
     if (productImagesMatch && method === 'GET') {
       const imageItems=await rpc('list_product_images',{p_product_id:productImagesMatch[1]});return {items:(imageItems||[]).map(i=>({...i,url:productImageUrl(i.url,i.storage_path)}))};
@@ -335,15 +370,38 @@ window.WardatBackend = (() => {
     }
     if (p === '/api/inventory/adjust' && method === 'POST') return await rpc('adjust_inventory', { p_payload: body });
 
+    // التالف والجرد V27
+    if (p === '/api/damage-records' && method === 'GET') return await rpc('get_damage_records_v27',{p_from:u.searchParams.get('from')||null,p_to:u.searchParams.get('to')||null});
+    if (p === '/api/damage-records' && method === 'POST') return await rpc('create_damage_record_v27',{p_payload:body});
+    const damageStatusMatch=p.match(/^\/api\/damage-records\/([^/]+)\/status$/);
+    if(damageStatusMatch&&method==='POST')return await rpc('set_damage_status_v27',{p_id:damageStatusMatch[1],p_status:body.status,p_reason:body.reason||null});
+    if (p === '/api/stocktakes' && method === 'GET') return await rpc('get_stocktakes_v27');
+    if (p === '/api/stocktakes' && method === 'POST') return await rpc('create_stocktake_v27',{p_payload:body});
+    const stocktakeCountMatch=p.match(/^\/api\/stocktakes\/([^/]+)\/count$/);
+    if(stocktakeCountMatch&&method==='POST')return await rpc('set_stocktake_count_v27',{p_id:stocktakeCountMatch[1],p_product_id:body.product_id,p_actual_qty:body.actual_qty??null,p_delta:body.delta??null,p_notes:body.notes||null});
+    const stocktakeApproveMatch=p.match(/^\/api\/stocktakes\/([^/]+)\/approve$/);
+    if(stocktakeApproveMatch&&method==='POST')return await rpc('approve_stocktake_v27',{p_id:stocktakeApproveMatch[1],p_reason:body.reason||null});
+    const stocktakeMatch=p.match(/^\/api\/stocktakes\/([^/]+)$/);
+    if(stocktakeMatch&&method==='GET')return await rpc('get_stocktake_details_v27',{p_id:stocktakeMatch[1]});
+
     // العملاء
     if (p === '/api/customers' && method === 'GET') {const search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u);let q=c.from('v_customers').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,to);if(search)q=q.or(`name.ilike.%${search}%,phone.ilike.%${search}%,customer_no.ilike.%${search}%`);const result=await q;return pagedResult(unwrap(result),result.count,page,pageSize);}
     if (p === '/api/customers' && method === 'POST') return await rpc('create_customer', { p_payload: body });
 
     // الطلبات ونقطة البيع
     if (p === '/api/orders' && method === 'GET') {const search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u);let q=c.from('v_orders').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,to);if(search)q=q.or(`order_no.ilike.%${search}%,customer_name.ilike.%${search}%,phone.ilike.%${search}%`);const result=await q;return pagedResult(unwrap(result),result.count,page,pageSize);}
-    if (p === '/api/orders' && method === 'POST') return await rpc('create_pos_order_v21', { p_payload: body });
+    if (p === '/api/orders' && method === 'POST') return await rpc('create_pos_order_v27', { p_payload: body });
+    const orderDetailsV27Match=p.match(/^\/api\/orders\/([^/]+)\/details$/);
+    if(orderDetailsV27Match&&method==='GET'){
+      const item=unwrap(await c.from('v_orders').select('*').eq('id',orderDetailsV27Match[1]).single());
+      const items=unwrap(await c.from('order_items').select('id,order_id,product_id,description,qty,unit_price,cost,discount,total,tax_amount,total_including_tax').eq('order_id',orderDetailsV27Match[1]).order('id'));
+      return {item,items};
+    }
     const orderMatch = p.match(/^\/api\/orders\/([^/]+)$/);
-    if (orderMatch && method === 'PATCH') return await rpc('update_order_status', { p_order_id: orderMatch[1], p_status: body.status, p_reason: body.reason || '' });
+    if (orderMatch && method === 'PATCH') {
+      if (body.status === 'returned') throw new Error('استخدم شاشة المرتجعات لإنشاء مرتجع مبيعات مرتبط بالفاتورة؛ تم إيقاف الإرجاع القديم لمنع تكرار حركة المخزون.');
+      return await rpc('update_order_status', { p_order_id: orderMatch[1], p_status: body.status, p_reason: body.reason || '' });
+    }
 
     // الحجوزات
     if (p === '/api/bookings' && method === 'GET') {const search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u);let q=c.from('v_bookings').select('*',{count:'exact'}).order('start_at',{ascending:false}).range(from,to);if(search)q=q.or(`booking_no.ilike.%${search}%,customer_name.ilike.%${search}%,event_type.ilike.%${search}%,phone.ilike.%${search}%`);const result=await q;return pagedResult(unwrap(result),result.count,page,pageSize);}
@@ -393,11 +451,21 @@ window.WardatBackend = (() => {
 
     // الموردون والمشتريات
     if (p === '/api/suppliers' && method === 'GET') return { items: await rows('v_suppliers', '*', q => q.order('name')) };
-    if (p === '/api/suppliers' && method === 'POST') return await rpc('create_supplier', { p_payload: body });
+    if (p === '/api/suppliers' && method === 'POST') return await rpc('create_supplier_v27', { p_payload: body });
     if (p === '/api/purchase-orders' && method === 'GET') return { items: await rows('v_purchase_orders', '*', q => q.order('created_at', { ascending: false })) };
-    if (p === '/api/purchase-orders' && method === 'POST') return await rpc('create_purchase_order', { p_payload: body });
+    if (p === '/api/purchase-orders' && method === 'POST') return await rpc('create_purchase_order_v27', { p_payload: body });
+    const purchaseDetailsMatch = p.match(/^\/api\/purchase-orders\/([^/]+)\/details$/);
+    if (purchaseDetailsMatch && method === 'GET') {
+      const po=unwrap(await c.from('v_purchase_orders').select('*').eq('id',purchaseDetailsMatch[1]).single());
+      const items=unwrap(await c.from('purchase_order_items').select('id,purchase_order_id,product_id,description,qty,received_qty,unit_price,total,tax_amount,total_including_tax').eq('purchase_order_id',purchaseDetailsMatch[1]).order('id'));
+      return {item:po,items};
+    }
     const receiveMatch = p.match(/^\/api\/purchase-orders\/([^/]+)\/receive$/);
     if (receiveMatch && method === 'POST') return await rpc('receive_purchase_order', { p_purchase_order_id: receiveMatch[1] });
+    if (p === '/api/sales-returns' && method === 'GET') return {items:await rows('sales_returns','*',q=>q.order('created_at',{ascending:false}).limit(200))};
+    if (p === '/api/sales-returns' && method === 'POST') return await rpc('create_sales_return_v27',{p_payload:body});
+    if (p === '/api/purchase-returns' && method === 'GET') return {items:await rows('purchase_returns','*',q=>q.order('created_at',{ascending:false}).limit(200))};
+    if (p === '/api/purchase-returns' && method === 'POST') return await rpc('create_purchase_return_v27',{p_payload:body});
 
     // الحضور والإجازات والرواتب والفلاتر V8
     if (p === '/api/hr/setup' && method === 'GET') return await rpc('get_hr_setup');
@@ -445,6 +513,15 @@ window.WardatBackend = (() => {
     if (p === '/api/data-quality/action' && method === 'POST') return await rpc('resolve_data_quality_issue',{p_issue_code:body.issue_code,p_entity_id:String(body.entity_id),p_action:body.action,p_reason:body.reason});
 
     // الذكاء والتقارير
+    if (p === '/api/store-dashboard' && method === 'GET') return await rpc('get_store_dashboard_v27',{p_from:u.searchParams.get('from'),p_to:u.searchParams.get('to')});
+    if (p === '/api/vat-report' && method === 'GET') return await rpc('get_vat_report_v27',{p_year:Number(u.searchParams.get('year')),p_quarter:Number(u.searchParams.get('quarter'))});
+    if (p === '/api/excel-import/logs' && method === 'GET') return {items:await rows('excel_import_runs','*',q=>q.order('created_at',{ascending:false}).limit(100))};
+    if (p === '/api/excel-import/log' && method === 'POST') return await rpc('log_excel_import_v27',{p_payload:body});
+    if (p === '/api/excel-import/historical-sales' && method === 'POST') return await rpc('import_historical_sales_v27',{p_payload:body});
+    if (p === '/api/excel-import/supplier-invoice' && method === 'POST') return await rpc('import_supplier_invoice_v27',{p_payload:body});
+    if (p === '/api/excel-import/supplier-payment' && method === 'POST') return await rpc('import_supplier_payment_v27',{p_payload:body});
+    if (p === '/api/supplier-payments' && method === 'GET') return {items:await rows('supplier_payments','*',q=>q.order('paid_at',{ascending:false}).limit(250))};
+    if (p === '/api/supplier-payments' && method === 'POST') return await rpc('record_supplier_payment_v27',{p_purchase_order_id:body.purchase_order_id,p_amount:Number(body.amount),p_method:body.method||'cash',p_transaction_ref:body.transaction_ref||null,p_notes:body.notes||null,p_idempotency_key:body.idempotency_key||crypto.randomUUID()});
     if (p === '/api/smart/suggestions' && method === 'GET') return await rpc('get_smart_suggestions');
     if (p === '/api/reports' && method === 'GET') return await rpc('get_report', {
       p_type: u.searchParams.get('type') || 'sales',
@@ -556,6 +633,7 @@ window.WardatBackend = (() => {
     request,
     logClientError,
     uploadProductImage,
+    uploadExpenseReceipt,
     deleteProductImage,
     setPrimaryProductImage,
     reorderProductImages,
