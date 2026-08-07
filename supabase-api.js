@@ -259,6 +259,7 @@ window.WardatBackend = (() => {
       const routeRules = [
         [/^\/api\/dashboard$/, 'dashboard.view'],
         [/^\/api\/categories$/, method==='GET'?'categories.view':'categories.create'],
+        [/^\/api\/products\/generate-barcodes$/, 'products.edit'],
         [/^\/api\/products\/[^/]+\/images(?:\/[^/]+)?$/, method==='GET'?'products.view':'products.manage_images'],
         [/^\/api\/products(?:\/[^/]+)?$/, method==='GET'?'products.view':method==='POST'?'products.create':'products.edit'],
         [/^\/api\/inventory$/, 'inventory.view'], [/^\/api\/inventory\/adjust$/, ['inventory.adjust','inventory.issue','inventory.receive']],
@@ -333,6 +334,7 @@ window.WardatBackend = (() => {
       const result=await q;const data=unwrap(result);return {...pagedResult(flattenProducts(data),result.count,page,pageSize)};
     }
     if (p === '/api/products' && method === 'POST') return await rpc('upsert_product_v21', { p_id: null, p_payload: body });
+    if (p === '/api/products/generate-barcodes' && method === 'POST') return await rpc('generate_missing_product_barcodes_v27_r1', { p_limit: Number(body.limit)||1000 });
     const barcodeProductMatch = p.match(/^\/api\/products\/barcode\/([^/]+)$/);
     if (barcodeProductMatch && method === 'GET') {
       const code=decodeURIComponent(barcodeProductMatch[1]);

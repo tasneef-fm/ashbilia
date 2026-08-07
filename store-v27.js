@@ -64,7 +64,8 @@
   };
 
   // ---------------- كاميرا المنتج + الباركود والملصقات ----------------
-  function generatedBarcode(){return `WA${Date.now().toString().slice(-10)}${Math.floor(Math.random()*90+10)}`;}
+  function ean13FromBase(base){const d=String(base).replace(/\D/g,'').slice(0,12).padEnd(12,'0');let sum=0;for(let i=0;i<12;i++)sum+=Number(d[i])*(i%2?3:1);return d+((10-(sum%10))%10);}
+  function generatedBarcode(){return ean13FromBase(`628${Date.now().toString().slice(-9)}`);}
   async function compressImage(file){
     if(!file?.type?.startsWith('image/'))return file;
     const max=1800,quality=.84;
@@ -86,10 +87,40 @@
     if(!window.JsBarcode)return toast('مكتبة طباعة الباركود غير متاحة','error');
     let count=Math.max(1,Math.min(100,Number(prompt('عدد ملصقات الباركود', '1'))||1));
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
-    try{JsBarcode(svg,product.barcode,{format:'CODE128',displayValue:true,fontSize:13,height:44,margin:5});}catch(e){return toast('تعذر إنشاء الباركود','error');}
+    try{JsBarcode(svg,product.barcode,{format:/^\d{13}$/.test(String(product.barcode))?'EAN13':'CODE128',displayValue:true,fontSize:13,height:44,margin:5});}catch(e){return toast('تعذر إنشاء الباركود','error');}
     const markup=svg.outerHTML,labels=Array.from({length:count},()=>`<div class="label"><b>${escapeHtml(product.name_ar)}</b><span>${money(product.sale_price)}</span>${markup}</div>`).join('');
     const w=window.open('','_blank');w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>باركود ${escapeHtml(product.name_ar)}</title><style>@page{margin:6mm}.sheet{display:flex;flex-wrap:wrap;gap:3mm}.label{width:48mm;min-height:27mm;border:1px dashed #bbb;padding:3mm;box-sizing:border-box;text-align:center;font-family:Arial}.label b,.label span{display:block}.label svg{max-width:100%;height:16mm}</style></head><body><div class="sheet">${labels}</div><script>onload=()=>print()<\/script></body></html>`);w.document.close();
   }
+
+  function barcodeSvgMarkup(product){
+    if(!product?.barcode||!window.JsBarcode)return '';
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    try{JsBarcode(svg,product.barcode,{format:/^\d{13}$/.test(String(product.barcode))?'EAN13':'CODE128',displayValue:true,fontSize:12,height:42,margin:4});return svg.outerHTML;}catch{return '';}
+  }
+  function printBarcodeSheet(products){
+    const list=(products||[]).filter(p=>p.barcode);if(!list.length)return toast('لا توجد باركودات للطباعة','error');
+    const each=Math.max(1,Math.min(20,Number(prompt('عدد الملصقات لكل صنف','1'))||1));
+    const labels=list.flatMap(p=>Array.from({length:each},()=>`<div class="label"><b>${escapeHtml(p.name_ar)}</b><small>${escapeHtml(p.sku||'')}</small><span>${money(p.sale_price)}</span>${barcodeSvgMarkup(p)}</div>`)).join('');
+    const w=window.open('','_blank');if(!w)return toast('اسمح للنوافذ المنبثقة للطباعة','error');
+    w.document.write(`<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>ملصقات الباركود</title><style>@page{margin:5mm}.sheet{display:flex;flex-wrap:wrap;gap:2mm}.label{width:48mm;min-height:29mm;border:1px dashed #bbb;padding:2.5mm;box-sizing:border-box;text-align:center;font-family:Arial}.label b,.label span,.label small{display:block}.label small{font-size:10px;color:#555}.label svg{max-width:100%;height:16mm}</style></head><body><div class="sheet">${labels}</div><script>onload=()=>print()<\/script></body></html>`);w.document.close();
+  }
+  async function generateMissingBarcodes(){
+    if(!guard('products.edit'))return;
+    if(!confirm('سيتم توليد باركود EAN-13 فريد لكل صنف نشط لا يحتوي على باركود. متابعة؟'))return;
+    const r=await apiV27('/api/products/generate-barcodes',{method:'POST',body:{limit:5000}});
+    toast(`تم توليد ${Number(r.generated||0)} باركود`);
+    state.cache.products=null;await renderProducts({page:1,search:state.cache.productsPage?.search||''});
+  }
+  const oldRenderProductsV27=renderProducts;
+  renderProducts=async function(options={}){
+    await oldRenderProductsV27(options);
+    const toolbar=$('#content .toolbar');if(!toolbar)return;
+    const actions=toolbar.querySelector('div:last-child');if(actions&&!$('#v27GenerateBarcodes')){
+      const gen=document.createElement('button');gen.id='v27GenerateBarcodes';gen.className='btn btn-outline';gen.textContent='توليد الباركودات';gen.onclick=generateMissingBarcodes;actions.prepend(document.createTextNode(' '));actions.prepend(gen);
+      const print=document.createElement('button');print.id='v27PrintBarcodes';print.className='btn btn-outline';print.textContent='طباعة الباركودات';print.onclick=()=>printBarcodeSheet(state.cache.products||[]);actions.prepend(document.createTextNode(' '));actions.prepend(print);
+    }
+  };
+
   const oldProductForm=productForm;
   productForm=function(p=null){
     oldProductForm(p);
@@ -110,7 +141,7 @@
     },30);
   };
   const oldRenderProductRows=renderProductRows;
-  renderProductRows=function(items){oldRenderProductRows(items);setTimeout(()=>{items.forEach(p=>{const edit=$(`[data-record-edit="product"][data-id="${p.id}"]`);const cell=edit?.closest('td');if(cell&&!cell.querySelector(`[data-v27-barcode-print="${p.id}"]`)){const b=document.createElement('button');b.className='mini-btn';b.dataset.v27BarcodePrint=p.id;b.textContent='باركود';b.onclick=()=>printBarcode(p);cell.appendChild(b);}});},0);};
+  renderProductRows=function(items){oldRenderProductRows(items);setTimeout(()=>{items.forEach(p=>{const edit=$(`[data-record-edit="product"][data-id="${p.id}"]`);const row=edit?.closest('tr');const codeCell=row?.children?.[1];if(codeCell&&!codeCell.querySelector('.v27-barcode-code'))codeCell.innerHTML=`<b>${escapeHtml(p.sku||'')}</b><small class="v27-barcode-code">${escapeHtml(p.barcode||'بدون باركود')}</small>`;const cell=edit?.closest('td');if(cell&&!cell.querySelector(`[data-v27-barcode-print="${p.id}"]`)){const b=document.createElement('button');b.className='mini-btn';b.dataset.v27BarcodePrint=p.id;b.textContent='باركود';b.onclick=()=>printBarcode(p);cell.appendChild(b);}});},0);};
 
 
   // ---------------- الموردون والمشتريات V27 ----------------
