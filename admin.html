@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#d5aa5b">
   <title>لوحة إدارة وردة أشبيليا</title>
   <link rel="icon" href="assets/logo.png">
-  <link rel="stylesheet" href="styles.css?v=20260807-v36-no-email-limit">
+  <link rel="stylesheet" href="styles.css?v=20260807-v38-username-login">
   <link rel="stylesheet" href="excel-mode-v28.css?v=20260807-v28-excel-mode">
   <link rel="stylesheet" href="excel-entry-v29.css?v=20260807-v29-excel-entry">
   <link rel="stylesheet" href="supplier-excel-v30.css?v=20260807-v30-supplier-excel">
@@ -26,9 +26,9 @@
       <div class="portal-login-card">
         <span class="eyebrow">بوابة مستقلة وآمنة</span>
         <h1>دخول الإدارة</h1>
-        <p>هذه الصفحة مخصصة للإدارة والمحاسبة والإشراف الإداري.</p>
+        <p>هذه الصفحة مخصصة للإدارة، ويمكن أيضًا للموظف تسجيل الدخول باسم المستخدم وسيتم تحويله تلقائيًا إلى الكاشير.</p>
         <form id="loginForm" class="form-grid single">
-          <label>البريد الإلكتروني<input type="email" name="email" autocomplete="username" required></label>
+          <label>اسم المستخدم أو البريد الإلكتروني<input type="text" name="email" autocomplete="username" required placeholder="مثال: emp005 أو admin@example.com"></label>
           <label>كلمة المرور<input type="password" name="password" autocomplete="current-password" required></label>
           <button class="btn btn-primary" type="submit">تسجيل الدخول</button>
         </form>
@@ -56,20 +56,20 @@
 
   <div id="formModal" class="modal hidden"><div class="modal-card wide-card"><button class="modal-close" data-close="formModal">×</button><div id="formModalContent"></div></div></div>
 
-  <script src="config.js?v=20260807-v36-no-email-limit"></script>
+  <script src="config.js?v=20260807-v38-username-login"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="permissions-service.js?v=20260807-v36-no-email-limit"></script>
-  <script src="supabase-api.js?v=20260807-v36-no-email-limit"></script>
-  <script src="financial-engine.js?v=20260807-v36-no-email-limit"></script>
-  <script src="document-engine.js?v=20260807-v36-no-email-limit"></script>
-  <script src="hr-payroll-v8.js?v=20260807-v36-no-email-limit"></script>
+  <script src="permissions-service.js?v=20260807-v38-username-login"></script>
+  <script src="supabase-api.js?v=20260807-v38-username-login"></script>
+  <script src="financial-engine.js?v=20260807-v38-username-login"></script>
+  <script src="document-engine.js?v=20260807-v38-username-login"></script>
+  <script src="hr-payroll-v8.js?v=20260807-v38-username-login"></script>
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.6/JsBarcode.all.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-  <script src="app.js?v=20260807-v36-no-email-limit"></script>
-  <script src="barcode-scanner-v27.js?v=20260807-v36-no-email-limit"></script>
-  <script src="store-v27.js?v=20260807-v36-no-email-limit"></script>
+  <script src="app.js?v=20260807-v38-username-login"></script>
+  <script src="barcode-scanner-v27.js?v=20260807-v38-username-login"></script>
+  <script src="store-v27.js?v=20260807-v38-username-login"></script>
   <script src="excel-mode-v28.js?v=20260807-v28-excel-mode"></script>
   <script src="excel-entry-v29.js?v=20260807-v29-excel-entry"></script>
   <script src="supplier-excel-v30.js?v=20260807-v30-supplier-excel"></script>

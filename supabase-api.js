@@ -493,17 +493,15 @@ window.WardatBackend = (() => {
       const employeeId=employeeUserMatch[1];
       const username=String(body.username||'').trim().toLowerCase();
       const password=String(body.password||'');
-      if(!/^[a-z0-9._-]{3,32}$/.test(username))throw new Error('اسم المستخدم يجب أن يكون إنجليزيًا ويحتوي حروفًا أو أرقامًا فقط');
       if(password.length<10)throw new Error('كلمة المرور يجب ألا تقل عن 10 أحرف');
-      const loginEmail=`${username}@cashier.wardat.app`;
-      // V36: إنشاء مباشر من RPC أمني، بدون signUp وبدون إرسال بريد أو Email Rate Limit.
-      const created=await rpc('create_employee_cashier_user_v36',{
+      // V37: الخادم يضمن اسم مستخدم فريدًا تلقائيًا حتى لو كان المقترح مكررًا.
+      const created=await rpc('create_employee_cashier_user_v37',{
         p_employee_id:employeeId,
-        p_username:username,
+        p_username:username||null,
         p_password:password,
-        p_reason:String(body.reason||'إنشاء حساب كاشير للموظف V36')
+        p_reason:String(body.reason||'إنشاء حساب كاشير للموظف V37 - اسم متسلسل فريد')
       });
-      return {...created,username,login_email:loginEmail};
+      return created;
     }
 
     // الموردون والمشتريات

@@ -1219,7 +1219,11 @@ async function openBulkEmployeeUsers(){
   const all=(d.items||[]).filter(x=>x.is_active!==false);
   const pending=all.filter(x=>!x.has_user_account);
   if(!pending.length)return toast('كل الموظفين لديهم حسابات دخول بالفعل');
-  const draft=pending.map((e,i)=>({...e,username:e.suggested_username||employeeUsernameSuggestion(e,i),password:generateEmployeeTempPassword()}));
+  // V37: لا نعتمد على كود الموظف لأنه قد يكون مكررًا/فارغًا. نحجز أسماء empNNN فريدة محليًا، والخادم يعيد التحقق تحت قفل قاعدة البيانات.
+  const used=new Set(all.map(x=>String(x.username||'').trim().toLowerCase()).filter(Boolean));
+  let seq=1;
+  const nextUniqueUsername=()=>{let u;do{u=`emp${String(seq++).padStart(3,'0')}`;}while(used.has(u));used.add(u);return u;};
+  const draft=pending.map(e=>({...e,username:nextUniqueUsername(),password:generateEmployeeTempPassword()}));
   openForm('إنشاء يوزرات لكل الموظفين',`<div class="span-2 demo-note">سيتم إنشاء ${draft.length} حساب كاشير. احتفظ بكشف كلمات المرور بعد الإنشاء؛ النظام لا يخزن كلمات المرور كنص.</div><div class="span-2 table-wrap" style="max-height:430px"><table class="data-table"><thead><tr><th>الموظف</th><th>الكود</th><th>اسم المستخدم</th><th>كلمة المرور المؤقتة</th></tr></thead><tbody>${draft.map(r=>`<tr><td>${escapeHtml(r.name)}</td><td>${escapeHtml(r.employee_no||'')}</td><td dir="ltr"><input data-user-for="${r.employee_id}" value="${escapeHtml(r.username)}" style="min-width:110px"></td><td dir="ltr"><input data-pass-for="${r.employee_id}" value="${escapeHtml(r.password)}" style="min-width:160px"></td></tr>`).join('')}</tbody></table></div><div class="span-2"><button class="btn btn-primary" id="confirmBulkEmployeeUsers" type="button">إنشاء الحسابات الآن</button></div>`,()=>{});
   setTimeout(()=>{
     const btn=$('#confirmBulkEmployeeUsers');if(!btn)return;
@@ -1233,8 +1237,8 @@ async function openBulkEmployeeUsers(){
         const password=String(document.querySelector(`[data-pass-for="${r.employee_id}"]`)?.value||r.password);
         btn.textContent=`جاري الإنشاء ${i+1} / ${draft.length}`;
         try{
-          await api(`/api/access/employee-users/${r.employee_id}`,{method:'POST',body:{username,password,name:r.name,reason:'إنشاء جماعي لحسابات الموظفين V36 بدون بريد'}});
-          success.push({...r,username,password});
+          const created=await api(`/api/access/employee-users/${r.employee_id}`,{method:'POST',body:{username,password,name:r.name,reason:'إنشاء جماعي لحسابات الموظفين V37 بأسماء فريدة'}});
+          success.push({...r,username:created?.username||username,password});
         }catch(error){failed.push({...r,error:error.message});}
         await new Promise(resolve=>setTimeout(resolve,40));
       }
