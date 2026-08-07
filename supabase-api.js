@@ -273,6 +273,7 @@ window.WardatBackend = (() => {
         [/^\/api\/quotations$/, method==='GET'?'quotations.view':'quotations.create'], [/^\/api\/quotations\/[^/]+\/approve$/, 'quotations.approve'],
         [/^\/api\/work-orders$/, method==='GET'?'workorders.view':'workorders.create'], [/^\/api\/work-orders\/[^/]+$/, ['workorders.edit','workorders.assign','workorders.update_status','workorders.upload_files','workorders.complete']],
         [/^\/api\/employees$/, ['employees.view','workorders.assign']],
+        [/^\/api\/supplier-excel$/, 'suppliers.view'], [/^\/api\/supplier-excel\/supplier$/, 'suppliers.create'], [/^\/api\/supplier-excel\/invoice$/, 'purchases.create'], [/^\/api\/supplier-excel\/payment$/, 'suppliers.pay'],
         [/^\/api\/suppliers$/, method==='GET'?'suppliers.view':'suppliers.create'],
         [/^\/api\/purchase-orders$/, method==='GET'?'purchases.view':'purchases.create'], [/^\/api\/purchase-orders\/[^/]+\/details$/, 'purchases.view'], [/^\/api\/purchase-orders\/[^/]+\/receive$/, 'purchases.receive'],
         [/^\/api\/smart\/suggestions$/, 'smart.view'], [/^\/api\/reports$/, 'reports.view'],
@@ -565,6 +566,21 @@ window.WardatBackend = (() => {
     if (p === '/api/excel-import/supplier-payment' && method === 'POST') return await rpc('import_supplier_payment_v27',{p_payload:body});
     if (p === '/api/supplier-payments' && method === 'GET') return {items:await rows('supplier_payments','*',q=>q.order('paid_at',{ascending:false}).limit(250))};
     if (p === '/api/supplier-payments' && method === 'POST') return await rpc('record_supplier_payment_v27',{p_purchase_order_id:body.purchase_order_id,p_amount:Number(body.amount),p_method:body.method||'cash',p_transaction_ref:body.transaction_ref||null,p_notes:body.notes||null,p_idempotency_key:body.idempotency_key||crypto.randomUUID()});
+    // V30 — كشف حساب الموردين بنفس تبويبات Excel
+    if (p === '/api/supplier-excel' && method === 'GET') return await rpc('get_supplier_excel_system_v30');
+    if (p === '/api/supplier-excel/supplier' && method === 'POST') {
+      try{return await rpc('create_supplier_excel_v30',{p_payload:body});}
+      catch(error){if(!/create_supplier_excel_v30|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||'')))throw error;try{return await rpc('create_supplier_v27',{p_payload:body});}catch{return await rpc('create_supplier',{p_payload:body});}}
+    }
+    if (p === '/api/supplier-excel/invoice' && method === 'POST') {
+      try{return await rpc('create_supplier_invoice_excel_v30',{p_payload:body});}
+      catch(error){if(!/create_supplier_invoice_excel_v30|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||'')))throw error;return await rpc('import_supplier_invoice_v27',{p_payload:body});}
+    }
+    if (p === '/api/supplier-excel/payment' && method === 'POST') {
+      try{return await rpc('create_supplier_payment_excel_v30',{p_payload:body});}
+      catch(error){if(!/create_supplier_payment_excel_v30|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||'')))throw error;return await rpc('import_supplier_payment_v27',{p_payload:body});}
+    }
+
     if (p === '/api/smart/suggestions' && method === 'GET') return await rpc('get_smart_suggestions');
     if (p === '/api/reports' && method === 'GET') return await rpc('get_report', {
       p_type: u.searchParams.get('type') || 'sales',

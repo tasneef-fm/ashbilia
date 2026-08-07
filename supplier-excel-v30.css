@@ -1,0 +1,32 @@
+/* V30 — حساب الموردين بنفس مصنف Excel المرجعي */
+.supplier-excel-shell{display:flex;flex-direction:column;gap:12px}
+.supplier-excel-title{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.supplier-excel-title h2{margin:0;font-size:21px}.supplier-excel-title p{margin:4px 0 0;color:#6b7280;font-size:12px}
+.supplier-sheet-tabs{display:flex;gap:5px;align-items:flex-end;overflow-x:auto;padding:0 2px;border-bottom:1px solid #cfd5dc}
+.supplier-sheet-tab{border:1px solid #cfd5dc;border-bottom:0;background:#edf0f3;color:#374151;padding:9px 22px;border-radius:7px 7px 0 0;font:inherit;font-weight:800;white-space:nowrap;cursor:pointer}
+.supplier-sheet-tab.active{background:#fffdf3;color:#3a2b19;border-color:#d4aa58;box-shadow:inset 0 3px 0 #d4aa58}
+.supplier-sheet-note{padding:9px 12px;border:1px solid #e1d4b8;background:#fffdf5;border-radius:5px;color:#5d5140;font-size:12px}
+.supplier-sheet-note strong{color:#176b45}
+.supplier-excel-table{border-collapse:separate!important;border-spacing:0!important;min-width:100%;font-size:12px}
+.supplier-excel-table th,.supplier-excel-table td{border-left:1px solid #d9dee5!important;border-bottom:1px solid #d9dee5!important;padding:5px 7px!important;white-space:nowrap;text-align:center}
+.supplier-excel-table th{background:#f1e4c5!important;color:#2f271d!important;font-weight:900!important;position:sticky;top:0;z-index:3;height:38px}
+.supplier-excel-table td:first-child,.supplier-excel-table th:first-child{border-right:1px solid #d9dee5!important}
+.supplier-excel-table tbody tr:nth-child(even):not(.supplier-entry-row) td{background:#fbfcfd}
+.supplier-excel-table .supplier-entry-row td{background:#fffbe8!important;padding:2px!important;box-shadow:inset 0 2px 0 #d8ad50,inset 0 -2px 0 #d8ad50}
+.supplier-grid-input{width:100%;min-width:94px;height:34px;border:0;background:#fffef9;padding:5px 7px;font:inherit;outline:0;text-align:center}
+.supplier-grid-input:focus{outline:2px solid #176b45;outline-offset:-2px;background:#fff}
+.supplier-grid-input.code{min-width:105px;font-weight:800;direction:ltr}
+.supplier-grid-input.notes{min-width:170px;text-align:right}
+.supplier-grid-calc{display:flex;align-items:center;justify-content:center;min-width:86px;height:34px;background:#edf0f3;color:#374151;font-weight:800;border:1px solid #dde2e8}
+.supplier-grid-save{width:34px;height:34px;border:0;border-radius:4px;background:#176b45;color:white;font-size:18px;font-weight:900;cursor:pointer}
+.supplier-grid-save:disabled{opacity:.55;cursor:wait}
+.supplier-entry-row.saving{opacity:.65}.supplier-entry-row.row-error td{background:#fff0f0!important}
+.supplier-status{display:inline-flex;min-width:58px;justify-content:center;padding:4px 8px;border-radius:999px;font-weight:900;font-size:11px}
+.supplier-status.paid{background:#dff4e9;color:#176b45}.supplier-status.partial{background:#fff0c7;color:#8a6416}.supplier-status.credit{background:#e7efff;color:#315b9b}.supplier-status.due{background:#ffe3de;color:#963e30}
+.supplier-summary-grid{display:grid;grid-template-columns:repeat(4,minmax(145px,1fr));gap:10px}
+.supplier-summary-card{border:1px solid #d7dde5;background:#fff;padding:14px;border-radius:7px}.supplier-summary-card span{display:block;color:#6b7280;font-size:11px}.supplier-summary-card strong{display:block;margin-top:5px;font-size:21px;color:#241d16}
+.supplier-workflow{margin-top:12px;border:1px solid #d7dde5;background:#fff;padding:14px;border-radius:7px}.supplier-workflow h3{margin:0 0 10px}.supplier-workflow ol{margin:0;padding-right:20px;display:grid;gap:9px;color:#4b5563}
+.supplier-compat-warning{border:1px solid #e8bd79;background:#fff8e8;color:#73521d;padding:10px 12px;border-radius:6px;font-size:12px}
+.supplier-actions{display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+@media(max-width:900px){.supplier-summary-grid{grid-template-columns:repeat(2,minmax(140px,1fr))}.supplier-sheet-tab{padding:8px 14px}.supplier-excel-table{min-width:900px}}
+@media(max-width:560px){.supplier-summary-grid{grid-template-columns:1fr 1fr}.supplier-excel-title h2{font-size:18px}}

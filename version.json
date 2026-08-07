@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.08.07-v28-r1-excel-compat",
+  "version": "2026.08.07-v30-supplier-excel-tabs",
   "generated": "2026-08-07",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 124,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-08-07T19:37:00+03:00",
+  "updated_at": "2026-08-07T20:09:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -84,7 +84,13 @@
     "supabase/verify-wardat-v27.sql",
     "version.json",
     "supabase/wardat-v27-r1-products-barcode-generator.sql",
-    "supabase/verify-wardat-v27-r1-products.sql"
+    "supabase/verify-wardat-v27-r1-products.sql",
+    "excel-entry-v29.js",
+    "excel-entry-v29.css",
+    "supplier-excel-v30.js",
+    "supplier-excel-v30.css",
+    "supabase/supplier-excel-system-v30.sql",
+    "supabase/verify-supplier-excel-system-v30.sql"
   ],
   "professional_product_preview": true,
   "product_preview_zoom": true,
@@ -167,9 +173,33 @@
   "barcode_format_default": "EAN-13",
   "v27_r1_products_migration": "supabase/wardat-v27-r1-products-barcode-generator.sql",
   "v27_r1_products_verify": "supabase/verify-wardat-v27-r1-products.sql",
-  "build": "V28-R1-EXCEL-COMPAT",
-  "notes": "إصلاح توقف نظام المحل عند غياب get_store_dashboard_v27؛ وضع Excel يعمل مباشرة على get_shop_excel_system_v25 مع fallback للوحة V27.",
+  "build": "V30-SUPPLIER-EXCEL-TABS",
+  "notes": "قسم الموردين أصبح مطابقًا لملف Excel المرجعي بأربع تبويبات: الموردين، الفواتير، الدفعات، الملخص، مع إدخال مباشر داخل الخلايا وحساب الرصيد والحالات تلقائيًا.",
   "excel_mode_v27_dashboard_dependency_removed": true,
   "shop_system_primary_rpc": "get_shop_excel_system_v25",
-  "dashboard_missing_rpc_fallback": true
+  "dashboard_missing_rpc_fallback": true,
+  "excel_direct_cell_entry": true,
+  "excel_enter_to_save": true,
+  "excel_tab_navigation": true,
+  "excel_formula_cells_locked": true,
+  "excel_inline_sections": [
+    "inventory",
+    "purchases",
+    "expenses",
+    "bookings",
+    "custodies",
+    "drivers"
+  ],
+  "purchase_v27_fallback": true,
+  "supplier_v27_fallback": true,
+  "purchase_payment_v27_fallback": true,
+  "supplier_excel_tabs_v30": true,
+  "supplier_excel_tabs": [
+    "suppliers",
+    "invoices",
+    "payments",
+    "summary"
+  ],
+  "supplier_excel_migration": "supabase/supplier-excel-system-v30.sql",
+  "supplier_excel_verify": "supabase/verify-supplier-excel-system-v30.sql"
 }

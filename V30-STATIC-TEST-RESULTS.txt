@@ -1,0 +1,8 @@
+V30 STATIC TEST RESULTS
+========================
+
+admin_local_refs_missing: []
+supplier_tabs_in_js: True
+api_routes: True
+sql_functions: True
+version: 2026.08.07-v30-supplier-excel-tabs
