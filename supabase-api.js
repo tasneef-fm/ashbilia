@@ -288,11 +288,12 @@ window.WardatBackend = (() => {
     // لوحة الإدارة
     if (p === '/api/dashboard' && method === 'GET') return await rpc('get_dashboard');
     if (p === '/api/shop-system' && method === 'GET') {
+      // V28 Excel Mode deliberately uses the Excel workflow RPC as the primary source.
+      // This keeps the screen working even when the optional V27 migration has not been
+      // installed in Supabase (the previous build stopped here with PGRST202).
       const month=u.searchParams.get('month')||new Date().toISOString().slice(0,10);
       const base=await rpc('get_shop_excel_system_v25',{p_month:month});
-      const start=`${String(month).slice(0,7)}-01`;const d0=new Date(`${start}T12:00:00`);const end=new Date(d0.getFullYear(),d0.getMonth()+1,0,12).toISOString().slice(0,10);
-      const [dash,daily]=await Promise.all([rpc('get_store_dashboard_v27',{p_from:start,p_to:end}),rpc('get_daily_sales_v27',{p_month:month})]);
-      return {...base,dashboard:{...(base.dashboard||{}),...dash},daily_sales:daily.items||[],daily_summary:daily.summary||base.daily_summary,v27_accounting:true};
+      return {...base,excel_mode:true,v27_accounting:false};
     }
     if (p === '/api/shop-system/custodies' && method === 'POST')
       return await rpc('upsert_cash_custody_v25',{p_id:null,p_payload:body});
@@ -515,7 +516,26 @@ window.WardatBackend = (() => {
     if (p === '/api/data-quality/action' && method === 'POST') return await rpc('resolve_data_quality_issue',{p_issue_code:body.issue_code,p_entity_id:String(body.entity_id),p_action:body.action,p_reason:body.reason});
 
     // الذكاء والتقارير
-    if (p === '/api/store-dashboard' && method === 'GET') return await rpc('get_store_dashboard_v27',{p_from:u.searchParams.get('from'),p_to:u.searchParams.get('to')});
+    if (p === '/api/store-dashboard' && method === 'GET') {
+      const from=u.searchParams.get('from')||new Date().toISOString().slice(0,10),to=u.searchParams.get('to')||from;
+      try {
+        return await rpc('get_store_dashboard_v27',{p_from:from,p_to:to});
+      } catch (error) {
+        // Compatibility fallback for databases that are still on the Excel workflow (V25/V26).
+        if (!/get_store_dashboard_v27|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||''))) throw error;
+        const base=await rpc('get_shop_excel_system_v25',{p_month:`${String(from).slice(0,7)}-01`});
+        const m=base?.dashboard||{};
+        return {
+          sales_total:Number(m.sales_total||0),cost_of_goods:Number(m.cost_of_goods||0),gross_profit:Number(m.gross_profit||0),
+          expenses_total:Number(m.expenses_total||0),damage_total:0,net_profit:Number(m.net_profit||0),
+          opening_inventory_value:Number(m.inventory_value||0),inventory_value:Number(m.inventory_value||0),inventory_change:0,
+          purchases_added_value:Number(base?.purchase_summary?.total||0),purchases_total:Number(base?.purchase_summary?.total||0),supplier_due:Number(base?.purchase_summary?.remaining||0),
+          bookings_due:Number(base?.booking_summary?.remaining||0),custodies_due:Number(base?.custody_summary?.remaining_total||0),courier_total:Number(base?.delivery_summary?.amount_total||0),payroll_total:Number(base?.payroll_summary?.net_total||0),
+          output_vat:0,input_vat:0,vat_due:0,daily_sales:(base?.daily_sales||[]).map(x=>({day:x.date,sales:Number(x.sales_total??x.net_total??0),cogs:0,expenses:Number(x.expenses||0),damage:0,purchases:Number(x.purchases||0),profit:Number(x.net_total||0)})),
+          payment_breakdown:base?.payment_breakdown||[],top_products:[],low_products:[],low_stock:Number(m.low_stock||0),out_of_stock:Number(m.out_of_stock||0),product_count:Number(base?.inventory_summary?.count||0),losing_products:Number(m.loss_products||0),compatibility_mode:true
+        };
+      }
+    }
     if (p === '/api/vat-report' && method === 'GET') return await rpc('get_vat_report_v27',{p_year:Number(u.searchParams.get('year')),p_quarter:Number(u.searchParams.get('quarter'))});
     if (p === '/api/excel-import/logs' && method === 'GET') return {items:await rows('excel_import_runs','*',q=>q.order('created_at',{ascending:false}).limit(100))};
     if (p === '/api/excel-import/log' && method === 'POST') return await rpc('log_excel_import_v27',{p_payload:body});

@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.08.07-v27-unified-pos-inventory-accounting",
+  "version": "2026.08.07-v28-r1-excel-compat",
   "generated": "2026-08-07",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 124,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-08-07T17:03:00+03:00",
+  "updated_at": "2026-08-07T19:37:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -82,7 +82,9 @@
     "cashier/index.html",
     "supabase/wardat-v27-unified-pos-inventory.sql",
     "supabase/verify-wardat-v27.sql",
-    "version.json"
+    "version.json",
+    "supabase/wardat-v27-r1-products-barcode-generator.sql",
+    "supabase/verify-wardat-v27-r1-products.sql"
   ],
   "professional_product_preview": true,
   "product_preview_zoom": true,
@@ -156,5 +158,18 @@
   "accounting_profit_cashflow_split": true,
   "dashboard_v27": true,
   "v27_migration": "supabase/wardat-v27-unified-pos-inventory.sql",
-  "v27_verify": "supabase/verify-wardat-v27.sql"
+  "v27_verify": "supabase/verify-wardat-v27.sql",
+  "imported_accessory_products": 18,
+  "imported_accessory_products_source": "New ورقة عمل Microsoft Excel (6).xlsx",
+  "product_codes": "DEC-001..DEC-018",
+  "bulk_barcode_generation": true,
+  "bulk_barcode_print": true,
+  "barcode_format_default": "EAN-13",
+  "v27_r1_products_migration": "supabase/wardat-v27-r1-products-barcode-generator.sql",
+  "v27_r1_products_verify": "supabase/verify-wardat-v27-r1-products.sql",
+  "build": "V28-R1-EXCEL-COMPAT",
+  "notes": "إصلاح توقف نظام المحل عند غياب get_store_dashboard_v27؛ وضع Excel يعمل مباشرة على get_shop_excel_system_v25 مع fallback للوحة V27.",
+  "excel_mode_v27_dashboard_dependency_removed": true,
+  "shop_system_primary_rpc": "get_shop_excel_system_v25",
+  "dashboard_missing_rpc_fallback": true
 }
