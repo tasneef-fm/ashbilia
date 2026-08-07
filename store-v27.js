@@ -403,7 +403,7 @@
     if(!['damage','stocktake','vat','returns','excel_import'].includes(page))return oldRenderPage(page,force);
     const meta=availablePages().find(p=>p.id===page);if(!meta||!can(meta.permission)){state.currentPage=null;renderNav();$('#pageTitle').textContent='غير مصرح';$('#content').innerHTML='<div class="empty">ليست لديك صلاحية فتح هذا القسم</div>';return;}
     state.currentPage=page;renderNav();$('#pageTitle').textContent=pageLabel(meta);$('#pageSubtitle').textContent=pageSub(page);$('#content').innerHTML='<div class="empty">جاري تحميل البيانات...</div>';
-    try{if(page==='damage')await renderDamageV27();if(page==='stocktake')await renderStocktakesV27();if(page==='vat')await renderVatV27();if(page==='returns')await renderReturnsV27();if(page==='excel_import')await renderExcelImportV27();applyPagePermissions?.(page);enhanceCurrentPageTables?.(page);}catch(e){$('#content').innerHTML=`<div class="empty">${escapeHtml(e.message)}</div>`;toast(e.message,'error');}
+    try{if(page==='damage')await renderDamageV27();if(page==='stocktake')await renderStocktakesV27();if(page==='vat')await renderVatV27();if(page==='returns')await renderReturnsV27();if(page==='excel_import')await renderExcelImportV27();if(typeof applyPagePermissions==='function')applyPagePermissions(page);if(typeof enhanceCurrentPageTables==='function')enhanceCurrentPageTables(page);}catch(e){$('#content').innerHTML=`<div class="empty">${escapeHtml(e.message)}</div>`;toast(e.message,'error');}
   };
 
   window.WardatV27={renderDamage:renderDamageV27,renderStocktakes:renderStocktakesV27,renderVat:renderVatV27,renderReturns:renderReturnsV27,renderExcelImport:renderExcelImportV27,openStocktake,printBarcode,compressImage,addBarcodeToPos};
