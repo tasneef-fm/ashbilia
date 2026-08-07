@@ -314,11 +314,18 @@ window.WardatBackend = (() => {
         p_booking_id:body.booking_id,p_amount:Number(body.amount),
         p_method:body.method||'cash',p_notes:body.notes||null
       });
-    if (p === '/api/shop-system/purchase-payment' && method === 'POST')
-      return await rpc('record_supplier_payment_v27',{
-        p_purchase_order_id:body.purchase_order_id,p_amount:Number(body.amount),p_method:body.method||'cash',
-        p_transaction_ref:body.transaction_ref||null,p_notes:body.notes||null,p_idempotency_key:body.idempotency_key||crypto.randomUUID()
-      });
+    if (p === '/api/shop-system/purchase-payment' && method === 'POST') {
+      try {
+        return await rpc('record_supplier_payment_v27',{
+          p_purchase_order_id:body.purchase_order_id,p_amount:Number(body.amount),p_method:body.method||'cash',
+          p_transaction_ref:body.transaction_ref||null,p_notes:body.notes||null,p_idempotency_key:body.idempotency_key||crypto.randomUUID()
+        });
+      } catch (error) {
+        if (!/record_supplier_payment_v27|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||''))) throw error;
+        const result=await rpc('record_purchase_payment_v25',{p_purchase_order_id:body.purchase_order_id,p_amount:Number(body.amount),p_notes:body.notes||null});
+        return {...result,compatibility_mode:true};
+      }
+    }
     if (p === '/api/shop-system/expenses' && method === 'POST')
       return await rpc('create_expense_v25',{p_payload:body});
 
@@ -454,9 +461,23 @@ window.WardatBackend = (() => {
 
     // الموردون والمشتريات
     if (p === '/api/suppliers' && method === 'GET') return { items: await rows('v_suppliers', '*', q => q.order('name')) };
-    if (p === '/api/suppliers' && method === 'POST') return await rpc('create_supplier_v27', { p_payload: body });
+    if (p === '/api/suppliers' && method === 'POST') {
+      try { return await rpc('create_supplier_v27', { p_payload: body }); }
+      catch (error) {
+        if (!/create_supplier_v27|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||''))) throw error;
+        const result=await rpc('create_supplier', { p_payload: body });
+        return {...result,compatibility_mode:true};
+      }
+    }
     if (p === '/api/purchase-orders' && method === 'GET') return { items: await rows('v_purchase_orders', '*', q => q.order('created_at', { ascending: false })) };
-    if (p === '/api/purchase-orders' && method === 'POST') return await rpc('create_purchase_order_v27', { p_payload: body });
+    if (p === '/api/purchase-orders' && method === 'POST') {
+      try { return await rpc('create_purchase_order_v27', { p_payload: body }); }
+      catch (error) {
+        if (!/create_purchase_order_v27|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||''))) throw error;
+        const result=await rpc('create_purchase_order', { p_payload: body });
+        return {...result,compatibility_mode:true};
+      }
+    }
     const purchaseDetailsMatch = p.match(/^\/api\/purchase-orders\/([^/]+)\/details$/);
     if (purchaseDetailsMatch && method === 'GET') {
       const po=unwrap(await c.from('v_purchase_orders').select('*').eq('id',purchaseDetailsMatch[1]).single());
