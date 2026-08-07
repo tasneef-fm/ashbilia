@@ -274,6 +274,7 @@ window.WardatBackend = (() => {
         [/^\/api\/work-orders$/, method==='GET'?'workorders.view':'workorders.create'], [/^\/api\/work-orders\/[^/]+$/, ['workorders.edit','workorders.assign','workorders.update_status','workorders.upload_files','workorders.complete']],
         [/^\/api\/employees$/, ['employees.view','workorders.assign']],
         [/^\/api\/supplier-excel$/, 'suppliers.view'], [/^\/api\/supplier-excel\/supplier$/, 'suppliers.create'], [/^\/api\/supplier-excel\/invoice$/, 'purchases.create'], [/^\/api\/supplier-excel\/payment$/, 'suppliers.pay'],
+        [/^\/api\/custody-excel$/, 'reports.view_financial'], [/^\/api\/custody-excel\/row$/, 'reports.view_financial'],
         [/^\/api\/suppliers$/, method==='GET'?'suppliers.view':'suppliers.create'],
         [/^\/api\/purchase-orders$/, method==='GET'?'purchases.view':'purchases.create'], [/^\/api\/purchase-orders\/[^/]+\/details$/, 'purchases.view'], [/^\/api\/purchase-orders\/[^/]+\/receive$/, 'purchases.receive'],
         [/^\/api\/smart\/suggestions$/, 'smart.view'], [/^\/api\/reports$/, 'reports.view'],
@@ -296,6 +297,11 @@ window.WardatBackend = (() => {
       const base=await rpc('get_shop_excel_system_v25',{p_month:month});
       return {...base,excel_mode:true,v27_accounting:false};
     }
+    if (p === '/api/custody-excel' && method === 'GET')
+      return await rpc('get_custody_excel_system_v33');
+    if (p === '/api/custody-excel/row' && method === 'POST')
+      return await rpc('upsert_cash_custody_excel_v33',{p_id:body.id||null,p_payload:body});
+
     if (p === '/api/shop-system/custodies' && method === 'POST')
       return await rpc('upsert_cash_custody_v25',{p_id:null,p_payload:body});
     const shopCustodyMatch=p.match(/^\/api\/shop-system\/custodies\/([^/]+)$/);
