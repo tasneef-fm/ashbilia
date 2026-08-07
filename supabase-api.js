@@ -581,6 +581,11 @@ window.WardatBackend = (() => {
       catch(error){if(!/create_supplier_payment_excel_v30|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||'')))throw error;return await rpc('import_supplier_payment_v27',{p_payload:body});}
     }
 
+    // V32 — كشف الحجوزات بنفس ملف Excel المرجعي
+    if (p === '/api/booking-excel' && method === 'GET') return await rpc('get_booking_excel_system_v32');
+    if (p === '/api/booking-excel/booking' && method === 'POST') return await rpc('create_booking_excel_v32',{p_payload:body});
+    if (p === '/api/booking-excel/payment' && method === 'POST') return await rpc('record_booking_payment_excel_v32',{p_payload:body});
+
     if (p === '/api/smart/suggestions' && method === 'GET') return await rpc('get_smart_suggestions');
     if (p === '/api/reports' && method === 'GET') return await rpc('get_report', {
       p_type: u.searchParams.get('type') || 'sales',

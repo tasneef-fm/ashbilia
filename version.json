@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.08.07-v30-supplier-excel-tabs",
+  "version": "2026.08.07-v32-bookings-excel-data",
   "generated": "2026-08-07",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 124,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-08-07T20:09:00+03:00",
+  "updated_at": "2026-08-07T20:45:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -90,7 +90,13 @@
     "supplier-excel-v30.js",
     "supplier-excel-v30.css",
     "supabase/supplier-excel-system-v30.sql",
-    "supabase/verify-supplier-excel-system-v30.sql"
+    "supabase/verify-supplier-excel-system-v30.sql",
+    "booking-excel-v32.js",
+    "booking-excel-v32.css",
+    "supabase/booking-excel-system-v32.sql",
+    "supabase/booking-excel-data-v32.sql",
+    "supabase/booking-excel-v32-install-with-data.sql",
+    "supabase/verify-booking-excel-v32.sql"
   ],
   "professional_product_preview": true,
   "product_preview_zoom": true,
@@ -130,7 +136,7 @@
   "purchase_auto_balance": true,
   "inventory_excel_report": true,
   "excel_data_seed": true,
-  "imported_bookings": 43,
+  "imported_bookings": 49,
   "imported_custodies": 4,
   "imported_daily_sales_days": 4,
   "imported_driver_logs": 8,
@@ -173,8 +179,8 @@
   "barcode_format_default": "EAN-13",
   "v27_r1_products_migration": "supabase/wardat-v27-r1-products-barcode-generator.sql",
   "v27_r1_products_verify": "supabase/verify-wardat-v27-r1-products.sql",
-  "build": "V30-SUPPLIER-EXCEL-TABS",
-  "notes": "قسم الموردين أصبح مطابقًا لملف Excel المرجعي بأربع تبويبات: الموردين، الفواتير، الدفعات، الملخص، مع إدخال مباشر داخل الخلايا وحساب الرصيد والحالات تلقائيًا.",
+  "build": "V32-BOOKINGS-EXCEL-DATA",
+  "notes": "قسم الحجوزات مطابق لملف Excel المرفق: إدخال مباشر داخل الخلايا، المبلغ = المدفوع + المتبقي، حالة السداد تلقائية، ورفع 49 حجزًا فعليًا مع الحفاظ على القيم الأصلية.",
   "excel_mode_v27_dashboard_dependency_removed": true,
   "shop_system_primary_rpc": "get_shop_excel_system_v25",
   "dashboard_missing_rpc_fallback": true,
@@ -201,5 +207,28 @@
     "summary"
   ],
   "supplier_excel_migration": "supabase/supplier-excel-system-v30.sql",
-  "supplier_excel_verify": "supabase/verify-supplier-excel-system-v30.sql"
+  "supplier_excel_verify": "supabase/verify-supplier-excel-system-v30.sql",
+  "supplier_excel_data": "supabase/supplier-excel-data-v31.sql",
+  "supplier_excel_full_installer": "supabase/supplier-excel-v31-install-with-data.sql",
+  "supplier_excel_data_verify": "supabase/verify-supplier-excel-data-v31.sql",
+  "supplier_excel_seed_counts": {
+    "suppliers": 6,
+    "invoices": 5,
+    "payments": 4
+  },
+  "booking_excel_v32": true,
+  "booking_excel_direct_entry": true,
+  "booking_excel_amount_formula": "paid_amount + remaining_amount",
+  "booking_excel_data": "supabase/booking-excel-data-v32.sql",
+  "booking_excel_migration": "supabase/booking-excel-system-v32.sql",
+  "booking_excel_full_installer": "supabase/booking-excel-v32-install-with-data.sql",
+  "booking_excel_verify": "supabase/verify-booking-excel-v32.sql",
+  "booking_excel_seed_counts": {
+    "actual_bookings": 49,
+    "paid_bookings": 8,
+    "excel_total": 244475,
+    "excel_paid": 69600,
+    "excel_remaining": 188075,
+    "source_mismatch_rows": 6
+  }
 }
