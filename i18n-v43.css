@@ -1,0 +1,26 @@
+.language-toggle{border:1px solid #d5aa5b;background:#fff;color:#30261f;border-radius:12px;padding:9px 12px;display:inline-flex;align-items:center;gap:7px;font-weight:800;white-space:nowrap;cursor:pointer;box-shadow:0 4px 14px #0000000a}
+.language-toggle:hover{background:#fffaf1}.language-toggle .lang-code{font-family:Arial,sans-serif;font-weight:900;color:#a97928}.language-toggle .lang-name{font-size:12px}
+.portal-login-card>.language-toggle{align-self:flex-start;margin-bottom:16px}
+html[dir="ltr"] body{text-align:left}
+html[dir="ltr"] .sidebar{right:auto;left:0}
+html[dir="ltr"] .app-main{margin-right:0;margin-left:265px}
+html[dir="ltr"] .nav-item{text-align:left}
+html[dir="ltr"] .top-actions{margin-right:0;margin-left:auto}
+html[dir="ltr"] .data-table th,html[dir="ltr"] .data-table td{text-align:left}
+html[dir="ltr"] .portal-home-link{left:auto;right:22px}
+html[dir="ltr"] .smart-card{border-right:1px solid var(--line);border-left:5px solid var(--gold)}
+html[dir="ltr"] .quality-item{border-right:1px solid var(--line);border-left:5px solid var(--gold)}
+html[dir="ltr"] .quality-item.critical{border-left-color:var(--red)}html[dir="ltr"] .quality-item.warning{border-left-color:#c68a1d}html[dir="ltr"] .quality-item.info{border-left-color:#6d83a8}
+html[dir="ltr"] .monthly-attendance-table .monthly-sticky-name{right:auto;left:0;text-align:left;border-left:0;border-right:2px solid var(--line)}
+html[dir="ltr"] .professional-product-info{direction:ltr}
+html[dir="ltr"] .professional-product-gallery{direction:ltr;border-right:0;border-left:1px solid rgba(213,170,91,.22)}
+html[dir="ltr"] .product-badge{right:auto;left:12px}
+html[dir="ltr"] .preview-close-btn{right:auto;left:24px}
+html[dir="ltr"] .preview-zoom-btn{right:auto;left:26px}
+html[dir="ltr"] .preview-brand-mark{left:auto;right:34px}
+html[dir="ltr"] .metric-card:after{left:auto;right:-30px}
+@media(max-width:800px){
+ html[dir="ltr"] .sidebar{transform:translateX(-110%)}html[dir="ltr"] .sidebar.open{transform:translateX(0)}html[dir="ltr"] .app-main{margin-left:0}
+ html[dir="ltr"] .portal-home-link{right:auto}
+ .language-toggle .lang-name{display:none}.language-toggle{padding:9px 11px}
+}

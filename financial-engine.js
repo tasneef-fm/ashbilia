@@ -1,12 +1,12 @@
 
 'use strict';
 (() => {
-  const defaults = {taxRate:0.15,defaultPriceMode:'exclusive',minimumProfitPercent:0,deliveryTaxable:true,extrasTaxable:true,currency:'SAR',locale:'ar-SA'};
+  const defaults = {taxRate:0.15,defaultPriceMode:'exclusive',minimumProfitPercent:0,deliveryTaxable:true,extrasTaxable:true,currency:'SAR',locale:(window.WardatI18n?.locale?.()||'ar-SA')};
   let config={...defaults};
   const n=value=>{if(value===null||value===undefined||value==='')return 0;const x=String(value).replace(/[٠-٩]/g,d=>'٠١٢٣٤٥٦٧٨٩'.indexOf(d)).replace(/[٬,]/g,'').replace('٫','.').trim();const v=Number(x);return Number.isFinite(v)?v:0;};
   const round=(value,digits=2)=>{const f=10**digits;return Math.round((n(value)+Number.EPSILON)*f)/f;};
   const mode=value=>['inclusive','exclusive','exempt'].includes(value)?value:config.defaultPriceMode;
-  const format=value=>new Intl.NumberFormat(config.locale,{style:'currency',currency:config.currency,minimumFractionDigits:2,maximumFractionDigits:2}).format(round(value));
+  const format=value=>new Intl.NumberFormat(window.WardatI18n?.locale?.()||config.locale,{style:'currency',currency:config.currency,minimumFractionDigits:2,maximumFractionDigits:2}).format(round(value));
   function line(input={}){
     const qty=Math.max(0,n(input.qty||0)),inputPrice=Math.max(0,n(input.unitPrice??input.unit_price??0));
     const rate=Math.max(0,n(input.taxRate??input.tax_rate??config.taxRate)),priceMode=mode(input.priceMode??input.price_input_mode);
