@@ -303,7 +303,20 @@ window.WardatBackend = (() => {
       // installed in Supabase (the previous build stopped here with PGRST202).
       const month=u.searchParams.get('month')||new Date().toISOString().slice(0,10);
       const base=await rpc('get_shop_excel_system_v25',{p_month:month});
-      return {...base,excel_mode:true,v27_accounting:false};
+      // V47: correct the daily-sales sheet. The older V25 query counted booking
+      // payments as sales and historical supplier invoices as purchases.
+      // Keep V25 for the rest of the Excel-mode sections, but replace only the
+      // daily sheet with the corrected POS-only calculation when V47 is installed.
+      try{
+        const daily=await rpc('get_daily_sales_excel_v47',{p_month:month});
+        return {...base,...daily,excel_mode:true,v27_accounting:false,daily_sales_v47:true};
+      }catch(err){
+        const msg=String(err?.message||err||'');
+        if(/get_daily_sales_excel_v47|PGRST202|schema cache|does not exist/i.test(msg)){
+          return {...base,excel_mode:true,v27_accounting:false,daily_sales_v47:false};
+        }
+        throw err;
+      }
     }
     if (p === '/api/custody-excel' && method === 'GET')
       return await rpc('get_custody_excel_system_v33');

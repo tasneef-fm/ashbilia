@@ -1,14 +1,14 @@
 {
   "app": "Wardat Ashbilya",
   "edition": "GitHub Pages + Supabase",
-  "version": "2026.08.08-v46-sales-page",
+  "version": "2026.08.08-v47-daily-sales-fix",
   "generated": "2026-08-08",
   "timezone": "Asia/Riyadh",
   "currency": "SAR",
   "permissions_count": 124,
   "permissions_schema": 2,
   "active_permissions": 68,
-  "updated_at": "2026-08-08T09:58:00+03:00",
+  "updated_at": "2026-08-08T10:10:00+03:00",
   "permissions_build": "v2-view-type-fix",
   "customer_page": "index.html",
   "admin_page": "admin.html",
@@ -124,7 +124,9 @@
     "supabase/verify-v44-products-credentials.sql",
     "supabase/pos-sale-hotfix-v45.sql",
     "supabase/verify-pos-sale-v45.sql",
-    "excel-mode-v28.js"
+    "excel-mode-v28.js",
+    "supabase/daily-sales-excel-v47.sql",
+    "supabase/verify-daily-sales-excel-v47.sql"
   ],
   "professional_product_preview": true,
   "product_preview_zoom": true,
@@ -207,8 +209,8 @@
   "barcode_format_default": "EAN-13",
   "v27_r1_products_migration": "supabase/wardat-v27-r1-products-barcode-generator.sql",
   "v27_r1_products_verify": "supabase/verify-wardat-v27-r1-products.sql",
-  "build": "V46-SALES-PAGE",
-  "notes": "V46 adds a dedicated Sales page directly below Cashier in the simplified admin sidebar.",
+  "build": "V47-DAILY-SALES-EXCEL-FIX",
+  "notes": "Fix Excel daily sales: count POS order payments only, exclude booking payments and historical supplier invoices; petty cash only in petty column.",
   "excel_mode_v27_dashboard_dependency_removed": true,
   "shop_system_primary_rpc": "get_shop_excel_system_v25",
   "dashboard_missing_rpc_fallback": true,
@@ -322,5 +324,6 @@
   "employee_password_reset_required_for_display": true,
   "sql_migration": "supabase/product-bilingual-employee-credentials-v44.sql",
   "sales_page_in_sidebar": true,
-  "sales_page_position": "after_pos"
+  "sales_page_position": "after_pos",
+  "daily_sales_fix": true
 }
