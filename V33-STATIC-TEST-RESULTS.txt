@@ -1,0 +1,15 @@
+V33 STATIC TEST RESULTS
+========================
+
+PASS - API GET route
+PASS - API save route
+PASS - UI loaded
+PASS - Remaining formula UI
+PASS - Manual status dropdown
+PASS - DB manual status
+PASS - Seed six
+PASS - Exact total verifier
+PASS - Local references
+
+Metrics: {'records': 6, 'settled': 2, 'custody_total': 60211.5, 'invoices_total': 53489.5, 'remaining_total': 6722.0}
+Missing refs: []

@@ -1,0 +1,8 @@
+/* V44 — bilingual products, barcode selection, employee credentials */
+.product-name-en,.preview-product-name-en{direction:ltr;text-align:inherit;color:#7a6651;font-size:.78rem;line-height:1.3;margin-top:2px}
+.preview-product-name-en{font-size:1rem;margin-top:-6px;margin-bottom:10px;color:#9b752e}
+.v44-bilingual-name b,.v44-bilingual-name small{display:block}.v44-bilingual-name small{direction:ltr;color:#75685e;margin-top:3px}
+.v44-barcode-toolbar{display:grid;grid-template-columns:minmax(220px,1fr) auto auto;gap:10px;align-items:end;margin:10px 0 14px}.v44-barcode-toolbar label{margin:0}
+.v44-barcode-table input[type=number]{width:82px;text-align:center}.v44-barcode-table input[type=checkbox]{width:18px;height:18px}.v44-barcode-table .missing-en{color:#9c5d17;font-size:11px}
+.v44-login-user{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;direction:ltr;font-weight:800}.v44-credentials-note{padding:12px;border:1px solid #e4d2b3;border-radius:10px;background:#fff9ef;margin:8px 0}.v44-password-result{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;direction:ltr;font-size:18px;padding:10px;border:1px dashed #b78a3e;border-radius:9px;text-align:center;background:#fff}
+@media(max-width:700px){.v44-barcode-toolbar{grid-template-columns:1fr}.v44-barcode-table{font-size:12px}}

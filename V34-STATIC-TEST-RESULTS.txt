@@ -1,0 +1,15 @@
+V34 STATIC TEST RESULTS
+=======================
+PASS - employee portal exposes POS page only
+PASS - employee portal refuses POS when login is not linked to an employee record
+PASS - employee name is displayed on POS screen
+PASS - sale payload is not trusted for cashier identity; SQL wrapper strips cashier fields and resolves auth.uid()
+PASS - orders store cashier_employee_id + cashier_name
+PASS - invoice print reads cashier_name from stored order data
+PASS - admin employee list contains "كاشير فقط" action for linked accounts
+PASS - /cashier/ routes to employee cashier portal
+PASS - app.js syntax
+PASS - supabase-api.js syntax
+PASS - document-engine.js syntax
+PASS - all root JavaScript syntax checks
+PASS - local asset references in admin.html / employee.html / index.html

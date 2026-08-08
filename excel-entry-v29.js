@@ -48,20 +48,20 @@
   function inventoryView(d){
     const area=$('#shopTabArea'),s=d.inventory_summary||{},rows=d.inventory||[];
     state.cache.shopCurrentRows=rows;
-    area.innerHTML=`${note('اكتب اسم المنتج والعدد وسعر الشراء وسعر البيع مباشرة في الصف الأول. الكود والباركود يولدان تلقائيًا إذا تركت الكود فارغًا.')}
+    area.innerHTML=`${note('اكتب اسم المنتج بالعربي والإنجليزي والعدد وسعر الشراء وسعر البيع مباشرة في الصف الأول. الكود والباركود يولدان تلقائيًا إذا تركت الكود فارغًا.')}
     <div class="metrics">${shopMetric('إجمالي الأصناف',number(s.item_count))}${shopMetric('إجمالي القطع',number(s.pieces_total))}${shopMetric('إجمالي الشراء',money(s.purchase_total))}${shopMetric('إجمالي البيع المتوقع',money(s.sale_total))}${shopMetric('الربح المتوقع',money(s.expected_profit))}</div>
     <section class="panel"><div class="panel-head"><h3>الأصناف والمخزون — إدخال مباشر</h3><small>الخانات الرمادية محسوبة تلقائيًا</small></div>
-    <div class="table-wrap"><table class="data-table excel-entry-table"><thead><tr><th>كود الصنف</th><th>اسم المنتج</th><th>العدد</th><th>سعر الشراء</th><th>سعر البيع</th><th>إجمالي الشراء</th><th>إجمالي البيع</th><th>الربح المتوقع</th><th>ملاحظات</th><th></th></tr></thead><tbody>
-    <tr class="excel-entry-row" id="v29ProductEntry"><td>${getInput('sku','text','placeholder="تلقائي"')}</td><td>${getInput('name_ar','text','placeholder="اكتب اسم المنتج"')}</td><td>${getInput('qty','number','min="0" step="0.001" value="0"')}</td><td>${getInput('purchase','number','min="0" step="0.01" value="0"')}</td><td>${getInput('sale','number','min="0" step="0.01" value="0"')}</td><td>${calc('purchase_total')}</td><td>${calc('sale_total')}</td><td>${calc('profit')}</td><td>${getInput('notes','text','placeholder="اختياري"')}</td><td>${saveCell()}</td></tr>
-    ${rows.map(x=>`<tr><td><b>${escapeHtml(x.sku||'—')}</b></td><td><b>${escapeHtml(x.name_ar)}</b></td><td>${number(x.current_qty)}</td><td>${money(x.purchase_price)}</td><td>${money(x.sale_price)}</td><td>${money(x.purchase_total)}</td><td>${money(x.sale_total)}</td><td>${money(x.expected_profit)}</td><td>${escapeHtml(x.notes||'')}</td><td></td></tr>`).join('')}
+    <div class="table-wrap"><table class="data-table excel-entry-table"><thead><tr><th>كود الصنف</th><th>اسم المنتج عربي</th><th>اسم المنتج English</th><th>العدد</th><th>سعر الشراء</th><th>سعر البيع</th><th>إجمالي الشراء</th><th>إجمالي البيع</th><th>الربح المتوقع</th><th>ملاحظات</th><th></th></tr></thead><tbody>
+    <tr class="excel-entry-row" id="v29ProductEntry"><td>${getInput('sku','text','placeholder="تلقائي"')}</td><td>${getInput('name_ar','text','placeholder="الاسم العربي"')}</td><td>${getInput('name_en','text','dir="ltr" placeholder="English name"')}</td><td>${getInput('qty','number','min="0" step="0.001" value="0"')}</td><td>${getInput('purchase','number','min="0" step="0.01" value="0"')}</td><td>${getInput('sale','number','min="0" step="0.01" value="0"')}</td><td>${calc('purchase_total')}</td><td>${calc('sale_total')}</td><td>${calc('profit')}</td><td>${getInput('notes','text','placeholder="اختياري"')}</td><td>${saveCell()}</td></tr>
+    ${rows.map(x=>`<tr><td><b>${escapeHtml(x.sku||'—')}</b></td><td><b>${escapeHtml(x.name_ar)}</b></td><td dir="ltr">${escapeHtml(x.name_en||'—')}</td><td>${number(x.current_qty)}</td><td>${money(x.purchase_price)}</td><td>${money(x.sale_price)}</td><td>${money(x.purchase_total)}</td><td>${money(x.sale_total)}</td><td>${money(x.expected_profit)}</td><td>${escapeHtml(x.notes||'')}</td><td></td></tr>`).join('')}
     </tbody></table></div></section>`;
     bindExcelRow($('#v29ProductEntry'),{
       calculate:row=>{const q=n(rowVal(row,'qty')),p=n(rowVal(row,'purchase')),sale=n(rowVal(row,'sale'));setText(row,'purchase_total',money(q*p));setText(row,'sale_total',money(q*sale));setText(row,'profit',money(q*(sale-p)));},
       save:async row=>{
-        const name=clean(rowVal(row,'name_ar'));if(!name)throw new Error('اكتب اسم المنتج');
+        const name=clean(rowVal(row,'name_ar')),nameEn=clean(rowVal(row,'name_en'));if(!name)throw new Error('اكتب اسم المنتج بالعربي');if(!nameEn)throw new Error('اكتب اسم المنتج بالإنجليزي');
         const qty=n(rowVal(row,'qty')),purchase=n(rowVal(row,'purchase')),sale=n(rowVal(row,'sale'));
         const sku=clean(rowVal(row,'sku'))||autoSku();
-        await api('/api/products',{method:'POST',body:{sku,barcode:autoBarcode(),name_ar:name,unit:'قطعة',stock_qty:qty,purchase_price:purchase,average_cost:purchase,sale_price:sale,min_stock:0,is_active:true,description:clean(rowVal(row,'notes')),notes:clean(rowVal(row,'notes'))}});
+        await api('/api/products',{method:'POST',body:{sku,barcode:autoBarcode(),name_ar:name,name_en:nameEn,unit:'قطعة',stock_qty:qty,purchase_price:purchase,average_cost:purchase,sale_price:sale,min_stock:0,is_active:true,description:clean(rowVal(row,'notes')),notes:clean(rowVal(row,'notes'))}});
         toast(`تم حفظ ${name} وإعطاؤه الكود ${sku}`);await renderShopBooks({month:state.cache.shopMonth,tab:'inventory'});
       }
     });

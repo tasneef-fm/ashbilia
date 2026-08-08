@@ -353,7 +353,8 @@ window.WardatBackend = (() => {
       const activeOnly = u.searchParams.get('active') === '1',search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u,activeOnly?100:40);
       let q = c.from('v_products').select('*',{count:'exact'}).order('created_at', { ascending: false }).range(from,to);
       if (activeOnly) q = q.eq('is_active', true);
-      if (search) q=q.or(`name_ar.ilike.%${search}%,sku.ilike.%${search}%,barcode.ilike.%${search}%`);
+      const categoryId=u.searchParams.get('category_id');if(categoryId)q=q.eq('category_id',categoryId);
+      if (search) q=q.or(`name_ar.ilike.%${search}%,name_en.ilike.%${search}%,sku.ilike.%${search}%,barcode.ilike.%${search}%`);
       const result=await q;const data=unwrap(result);return {...pagedResult(flattenProducts(data),result.count,page,pageSize)};
     }
     if (p === '/api/products' && method === 'POST') return await rpc('upsert_product_v21', { p_id: null, p_payload: body });
@@ -486,6 +487,17 @@ window.WardatBackend = (() => {
     if (p === '/api/access/employee-users' && method === 'GET') {
       requireLocal('users.create');
       return { items: await rpc('list_employee_cashier_accounts_v35') };
+    }
+    const employeePasswordResetMatch=p.match(/^\/api\/access\/employee-users\/([^/]+)\/reset-password$/);
+    if(employeePasswordResetMatch&&method==='POST'){
+      requireLocal('users.create');
+      const password=String(body.password||'');
+      if(password.length<10)throw new Error('كلمة المرور يجب ألا تقل عن 10 أحرف');
+      return await rpc('reset_employee_cashier_password_v44',{
+        p_employee_id:employeePasswordResetMatch[1],
+        p_password:password,
+        p_reason:String(body.reason||'إعادة تعيين كلمة مرور موظف من شاشة بيانات الدخول V44')
+      });
     }
     const employeeUserMatch=p.match(/^\/api\/access\/employee-users\/([^/]+)$/);
     if(employeeUserMatch&&method==='POST'){

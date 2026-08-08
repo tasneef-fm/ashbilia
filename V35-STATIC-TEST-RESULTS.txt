@@ -1,0 +1,12 @@
+Wardat Ashbilya V35 static verification
+=====================================
+[OK] app.js syntax
+[OK] supabase-api.js syntax
+[OK] employee login accepts username or email
+[OK] bulk employee users button exists
+[OK] employee-user API route exists
+[OK] V35 finalize RPC referenced
+[OK] V35 SQL install file exists
+[OK] V35 verify SQL exists
+[OK] employee password change action exists
+[OK] cashier name binding from V34 preserved
