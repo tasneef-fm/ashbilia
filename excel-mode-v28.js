@@ -4,6 +4,7 @@
   const simplePages = [
     {id:'shopbooks',icon:'▦',label:'نظام المحل',permission:'reports.view'},
     {id:'pos',icon:'▣',label:'الكاشير',permission:'pos.view'},
+    {id:'orders',icon:'▤',label:'المبيعات',permission:'orders.view'},
     {id:'products',icon:'✿',label:'الأصناف والباركود',permission:'products.view'},
     {id:'purchases',icon:'⇣',label:'الموردين',permission:'suppliers.view'},
     {id:'bookings',icon:'◫',label:'الحجوزات',permission:'bookings.view'},
@@ -35,12 +36,12 @@
 
   const oldLabel = pageLabel;
   pageLabel = function(meta){
-    const m={shopbooks:'نظام المحل — عرض الإكسل',pos:'الكاشير',products:'الأصناف والباركود',purchases:'الموردين',bookings:'الحجوزات',stocktake:'الجرد الفعلي',damage:'سجل التالف',employees:'الموظفون',attendance:'الحضور',payroll:'الرواتب',settings:'الإعدادات'};
+    const m={shopbooks:'نظام المحل — عرض الإكسل',pos:'الكاشير',orders:'المبيعات',products:'الأصناف والباركود',purchases:'الموردين',bookings:'الحجوزات',stocktake:'الجرد الفعلي',damage:'سجل التالف',employees:'الموظفون',attendance:'الحضور',payroll:'الرواتب',settings:'الإعدادات'};
     return m[meta?.id]||oldLabel(meta);
   };
   const oldSub = pageSub;
   pageSub = function(p){
-    const m={shopbooks:'نفس ترتيب وطريقة عمل ملفات Excel مع حساب تلقائي',pos:'واجهة بيع مباشرة مرتبطة بالمخزون',products:'دليل الأصناف: الكود، الباركود، الكمية، الشراء والبيع',purchases:'الموردين والفواتير والدفعات والملخص بنفس ملف Excel',bookings:'كشف الحجوزات: المبلغ، المدفوع والمتبقي',stocktake:'الكمية الفعلية وفرق الجرد واعتماده',damage:'التالف المعتمد وتأثيره على المخزون',employees:'بيانات العامل والراتب الأساسي',attendance:'الحضور والغياب المرتبط بالراتب',payroll:'كشف الرواتب بنفس أعمدة Excel',settings:'الإعدادات الأساسية فقط'};
+    const m={shopbooks:'نفس ترتيب وطريقة عمل ملفات Excel مع حساب تلقائي',pos:'واجهة بيع مباشرة مرتبطة بالمخزون',orders:'فواتير المبيعات المسجلة من الكاشير مع البحث والطباعة',products:'دليل الأصناف: الكود، الباركود، الكمية، الشراء والبيع',purchases:'الموردين والفواتير والدفعات والملخص بنفس ملف Excel',bookings:'كشف الحجوزات: المبلغ، المدفوع والمتبقي',stocktake:'الكمية الفعلية وفرق الجرد واعتماده',damage:'التالف المعتمد وتأثيره على المخزون',employees:'بيانات العامل والراتب الأساسي',attendance:'الحضور والغياب المرتبط بالراتب',payroll:'كشف الرواتب بنفس أعمدة Excel',settings:'الإعدادات الأساسية فقط'};
     return m[p]||oldSub(p);
   };
 

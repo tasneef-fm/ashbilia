@@ -1,0 +1,8 @@
+V44 STATIC TESTS: PASS
+[PASS] name_en product form
+[PASS] barcode category selector
+[PASS] per-product copies
+[PASS] barcode bilingual label
+[PASS] employee login manager
+[PASS] password reset api
+[PASS] password reset sql
