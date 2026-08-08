@@ -417,10 +417,24 @@ window.WardatBackend = (() => {
     // الطلبات ونقطة البيع
     if (p === '/api/orders' && method === 'GET') {const search=safeSearch(u.searchParams.get('search')||''),{page,pageSize,from,to}=pageArgs(u);let q=c.from('v_orders').select('*',{count:'exact'}).order('created_at',{ascending:false}).range(from,to);if(search)q=q.or(`order_no.ilike.%${search}%,customer_name.ilike.%${search}%,phone.ilike.%${search}%`);const result=await q;return pagedResult(unwrap(result),result.count,page,pageSize);}
     if (p === '/api/orders' && method === 'POST') {
-      try { return await rpc('create_pos_order_v34', { p_payload: body }); }
-      catch (error) {
-        if (!/create_pos_order_v34|schema cache|PGRST202|Could not find the function/i.test(String(error?.message||''))) throw error;
-        return await rpc('create_pos_order_v27', { p_payload: body });
+      const isMissingRpc=(error,name)=>new RegExp(`${name}|schema cache|PGRST202|Could not find the function|does not exist`,'i').test(String(error?.message||''));
+      try { return await rpc('create_pos_order_v45', { p_payload: body }); }
+      catch (e45) {
+        if (!isMissingRpc(e45,'create_pos_order_v45')) throw e45;
+        try { return await rpc('create_pos_order_v34', { p_payload: body }); }
+        catch (e34) {
+          if (!isMissingRpc(e34,'create_pos_order_v34')) throw e34;
+          try { return await rpc('create_pos_order_v27', { p_payload: body }); }
+          catch (e27) {
+            if (!isMissingRpc(e27,'create_pos_order_v27')) throw e27;
+            // توافق أخير مع قواعد البيانات الأقدم: يسمح بإتمام البيع بدل توقف الكاشير بالكامل.
+            // بعد تركيب SQL V45 سيعود الدفع المختلط واسم الكاشير للعمل من الخادم.
+            const pays=Array.isArray(body?.payments)?body.payments.filter(x=>Number(x?.amount||0)>0):[];
+            const totalPaid=pays.reduce((sum,x)=>sum+Number(x.amount||0),0);
+            const firstMethod=pays[0]?.method||body?.payment_method||'cash';
+            return await rpc('create_pos_order_v21',{p_payload:{...body,paid_amount:totalPaid||Number(body?.paid_amount||0),payment_method:firstMethod}});
+          }
+        }
       }
     }
     const orderDetailsV27Match=p.match(/^\/api\/orders\/([^/]+)\/details$/);
